@@ -1,40 +1,50 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --primary: #0070f3;
-  --secondary: #eaeaea;
+  --background: #f6f4ef;
+  --foreground: #172026;
+  --surface: #ffffff;
+  --surface-raised: #fffcf7;
+  --primary: #245c7a;
+  --primary-strong: #173f55;
+  --accent: #b96d40;
+  --secondary: #e9e2d6;
+  --danger: #b42318;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-
-  /* Semantic Colors */
-  --header-bg: rgba(255, 255, 255, 0.8);
-  --header-border: #eaeaea;
+  --header-bg: rgba(246, 244, 239, 0.86);
+  --header-border: rgba(23, 32, 38, 0.12);
   --card-bg: #ffffff;
-  --card-border: #eaeaea;
-  --input-bg: #f9f9f9;
-  --input-border: #ddd;
-  --muted: #666;
-  --muted-light: #999;
-  --hero-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  --hero-text: #333;
+  --card-border: rgba(23, 32, 38, 0.12);
+  --input-bg: #ffffff;
+  --input-border: rgba(23, 32, 38, 0.16);
+  --muted: #65717a;
+  --muted-light: #8b969e;
+  --shadow-sm: 0 8px 24px rgba(23, 32, 38, 0.08);
+  --shadow-md: 0 18px 48px rgba(23, 32, 38, 0.14);
+  --hero-bg: #ece5d8;
+  --hero-text: #162832;
 }
 
 [data-theme='dark'] {
-  --background: #1a1a1a;
-  --foreground: #ededed;
-  --primary: #3291ff;
-  --secondary: #333;
-
-  /* Semantic Colors Dark */
-  --header-bg: rgba(26, 26, 26, 0.8);
-  --header-border: #333;
-  --card-bg: #222;
-  --card-border: #444;
-  --input-bg: #333;
-  --input-border: #444;
-  --muted: #aaa;
-  --muted-light: #777;
-  --hero-gradient: linear-gradient(135deg, #2c3e50 0%, #000000 100%);
-  --hero-text: #fff;
+  --background: #111518;
+  --foreground: #f2eee7;
+  --surface: #191f23;
+  --surface-raised: #20272c;
+  --primary: #7db4d0;
+  --primary-strong: #b7d6e6;
+  --accent: #d69a72;
+  --secondary: #2a3135;
+  --danger: #ff8a80;
+  --header-bg: rgba(17, 21, 24, 0.88);
+  --header-border: rgba(242, 238, 231, 0.12);
+  --card-bg: #1a2024;
+  --card-border: rgba(242, 238, 231, 0.12);
+  --input-bg: #151a1d;
+  --input-border: rgba(242, 238, 231, 0.18);
+  --muted: #a7b0b7;
+  --muted-light: #7f8a92;
+  --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.28);
+  --shadow-md: 0 18px 48px rgba(0, 0, 0, 0.34);
+  --hero-bg: #1f292e;
+  --hero-text: #f7f1e7;
 }
 
 html,
@@ -42,7 +52,7 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
   font-family: var(--font-sans);
-  background-color: var(--background);
+  background: var(--background);
   color: var(--foreground);
   margin: 0;
   padding: 0;
@@ -53,11 +63,19 @@ a {
   text-decoration: none;
 }
 
+button,
+input {
+  font-family: inherit;
+}
+
 button {
   cursor: pointer;
   border: none;
   background: none;
-  font-family: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 * {

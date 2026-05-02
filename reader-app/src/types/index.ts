@@ -5,6 +5,8 @@ export interface Book {
     format: 'pdf' | 'epub';
     url: string;
     coverUrl?: string; // Optional cover image
+    storagePath?: string;
+    coverStoragePath?: string;
     uploadedBy: string; // User ID
     createdAt: number; // Timestamp
 }
@@ -18,7 +20,7 @@ export interface UserProfile {
 export interface ReadingProgress {
     userId: string;
     bookId: string;
-    location: string; // CFI for Epub, Page number for PDF
-    percentage: number;
+    location: string | number; // CFI for Epub, page number for PDF
+    percentage?: number;
     lastRead: number;
 }

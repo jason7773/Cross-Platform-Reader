@@ -197,14 +197,14 @@ export default function EpubReader({ url, bookId, title }: { url: string; bookId
         }
     };
 
-    const renderTocItems = (items: EpubTocItem[], depth = 0) => (
+    const renderTocItems = (items: EpubTocItem[], depth = 0, parentKey = "toc") => (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {items.map((item, index) => {
                 const children = item.subitems || item.items || [];
-                const key = item.id || item.href || `${item.label}-${index}`;
+                const itemKey = `${parentKey}-${index}-${item.id || item.href || item.label || "section"}`;
 
                 return (
-                    <li key={key} style={{ marginBottom: 0, borderBottom: "1px solid rgba(128,128,128,0.2)" }}>
+                    <li key={itemKey} style={{ marginBottom: 0, borderBottom: "1px solid rgba(128,128,128,0.2)" }}>
                         <button
                             onClick={() => item.href && handleNavigate(item.href)}
                             disabled={!item.href}
@@ -224,7 +224,7 @@ export default function EpubReader({ url, bookId, title }: { url: string; bookId
                         >
                             {item.label || "Untitled section"}
                         </button>
-                        {children.length > 0 && renderTocItems(children, depth + 1)}
+                        {children.length > 0 && renderTocItems(children, depth + 1, itemKey)}
                     </li>
                 );
             })}

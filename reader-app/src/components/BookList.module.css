@@ -1,80 +1,180 @@
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 2rem;
-    margin-top: 2rem;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 1.2rem;
 }
 
 .card {
+    overflow: hidden;
+    background: var(--card-bg);
     border: 1px solid var(--card-border);
     border-radius: 8px;
-    overflow: hidden;
-    transition: box-shadow 0.2s;
-    background: var(--card-bg);
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
 }
 
 .card:hover {
-    box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+    border-color: rgba(36, 92, 122, 0.32);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
 }
 
 .coverPlaceholder {
-    height: 150px;
-    background: var(--secondary);
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2rem;
-    font-weight: bold;
-    color: var(--muted-light);
-    font-weight: bold;
-    color: var(--muted-light);
+    aspect-ratio: 3 / 4;
+    background:
+        linear-gradient(145deg, rgba(36, 92, 122, 0.18), rgba(185, 109, 64, 0.12)),
+        var(--secondary);
+    color: var(--muted);
+    font-size: 1.7rem;
+    font-weight: 800;
     text-transform: uppercase;
-    position: relative;
 }
 
 .coverImage {
-    width: 100%;
-    height: 100%;
     object-fit: cover;
 }
 
+.formatBadge {
+    position: absolute;
+    right: 0.65rem;
+    bottom: 0.65rem;
+    padding: 0.25rem 0.45rem;
+    color: var(--foreground);
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
 .info {
-    padding: 1rem;
+    padding: 0.95rem;
 }
 
 .title {
-    margin: 0 0 0.5rem 0;
-    font-size: 1rem;
-    white-space: nowrap;
+    margin: 0 0 0.35rem;
     overflow: hidden;
+    font-size: 0.98rem;
+    line-height: 1.35;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .author {
-    margin: 0 0 1rem 0;
-    font-size: 0.875rem;
+    min-height: 1.2rem;
+    margin: 0 0 0.9rem;
     color: var(--muted);
+    font-size: 0.84rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .actions {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.65rem;
 }
 
 .readBtn {
-    background: var(--primary);
+    flex: 1;
+    padding: 0.55rem 0.75rem;
     color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    font-size: 0.875rem;
+    background: var(--primary);
+    border-radius: 8px;
+    font-size: 0.86rem;
+    font-weight: 700;
+    text-align: center;
+}
+
+.readBtn:hover {
+    background: var(--primary-strong);
 }
 
 .deleteBtn {
-    color: var(--muted-light);
-    font-size: 0.875rem;
+    padding: 0.5rem 0;
+    color: var(--muted);
+    font-size: 0.84rem;
 }
 
 .deleteBtn:hover {
-    color: red;
+    color: var(--danger);
+}
+
+.status,
+.empty,
+.inlineError {
+    padding: 1rem;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.inlineError {
+    margin-bottom: 1rem;
+    color: var(--danger);
+}
+
+.dialogBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.44);
+}
+
+.dialog {
+    width: min(420px, 100%);
+    padding: 1.25rem;
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+}
+
+.dialog h3 {
+    margin: 0 0 0.5rem;
+}
+
+.dialog p {
+    margin: 0 0 1.2rem;
+    color: var(--muted);
+}
+
+.dialogActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.cancelBtn,
+.confirmDeleteBtn {
+    min-height: 40px;
+    padding: 0 1rem;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.cancelBtn {
+    color: var(--foreground);
+    border: 1px solid var(--input-border);
+}
+
+.confirmDeleteBtn {
+    color: white;
+    background: var(--danger);
+}
+
+.confirmDeleteBtn:disabled {
+    opacity: 0.65;
 }

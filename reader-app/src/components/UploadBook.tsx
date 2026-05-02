@@ -17,6 +17,7 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
     const [author, setAuthor] = useState("");
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -38,6 +39,7 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
         if (!file || !user) return;
         setUploading(true);
         setError("");
+        setSuccess("");
 
         try {
             const fileExt = file.name.split(".").pop()?.toLowerCase();
@@ -48,7 +50,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             }
 
             // 1. Upload book file to Storage
-            const storageRef = ref(storage, `books/${user.uid}/${Date.now()}_${file.name}`);
+            const storagePath = `books/${user.uid}/${Date.now()}_${file.name}`;
+            const storageRef = ref(storage, storagePath);
             const snapshot = await uploadBytes(storageRef, file);
             const url = await getDownloadURL(snapshot.ref);
 
@@ -67,9 +70,11 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 }
             }
 
+            let coverStoragePath = "";
             if (finalCoverBlob) {
                 const coverName = coverFile ? coverFile.name : `auto_cover_${Date.now()}.jpg`;
-                const coverRef = ref(storage, `covers/${user.uid}/${Date.now()}_${coverName}`);
+                coverStoragePath = `covers/${user.uid}/${Date.now()}_${coverName}`;
+                const coverRef = ref(storage, coverStoragePath);
                 const coverSnapshot = await uploadBytes(coverRef, finalCoverBlob);
                 coverUrl = await getDownloadURL(coverSnapshot.ref);
             }
@@ -81,6 +86,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 format,
                 url,
                 coverUrl,
+                storagePath,
+                coverStoragePath,
                 uploadedBy: user.uid,
                 createdAt: Date.now(),
             };
@@ -91,8 +98,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             setCoverFile(null);
             setTitle("");
             setAuthor("");
+            setSuccess("Book uploaded.");
             if (onUploadSuccess) onUploadSuccess();
-            alert("Book uploaded successfully!");
         } catch (err: unknown) {
             console.error(err);
             setError(getErrorMessage(err));
@@ -105,6 +112,7 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
         <div className={styles.container}>
             <h3>Upload New Book</h3>
             {error && <p className={styles.error}>{error}</p>}
+            {success && <p className={styles.success}>{success}</p>}
             <form onSubmit={handleUpload} className={styles.form}>
                 <div className={styles.dropZone}>
                     <input

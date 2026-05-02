@@ -1,122 +1,165 @@
 .main {
   min-height: 100vh;
-  background-color: var(--background);
+  background:
+    linear-gradient(180deg, rgba(185, 109, 64, 0.08), transparent 280px),
+    var(--background);
 }
 
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  background: var(--header-bg);
-  backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
   z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  background: var(--header-bg);
+  backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--header-border);
 }
 
 .logo {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: var(--primary);
+  color: var(--primary-strong);
+  font-size: 1.25rem;
+  font-weight: 800;
 }
 
 .userMenu {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
+  min-width: 0;
   font-size: 0.9rem;
 }
 
+.email {
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .logoutBtn {
-  padding: 0.5rem 1rem;
-  background: transparent;
+  min-height: 38px;
+  padding: 0 0.95rem;
   color: var(--muted);
   border: 1px solid var(--input-border);
-  border-radius: 20px;
-  transition: all 0.2s;
+  border-radius: 8px;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 
 .logoutBtn:hover {
-  border-color: red;
-  color: red;
+  color: var(--danger);
+  border-color: var(--danger);
+  background: rgba(180, 35, 24, 0.08);
 }
 
 .hero {
-  padding: 4rem 2rem;
-  text-align: center;
-  background: var(--hero-gradient);
-  margin-bottom: 2rem;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 3rem 2rem 2rem;
+}
+
+.hero > div {
+  padding: 2rem;
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 90% 20%, rgba(36, 92, 122, 0.16), transparent 28%),
+    linear-gradient(135deg, var(--hero-bg), var(--surface-raised));
+  box-shadow: var(--shadow-sm);
+}
+
+.kicker {
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .hero h1 {
-  font-size: 3rem;
-  margin: 0 0 1rem 0;
+  max-width: 740px;
+  margin: 0.5rem 0 0.75rem;
   color: var(--hero-text);
+  font-size: 2.45rem;
+  line-height: 1.08;
 }
 
 .hero p {
-  font-size: 1.2rem;
+  max-width: 620px;
+  margin: 0;
   color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.65;
 }
 
 .controls {
-  padding: 0 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
-  max-width: 1200px;
-  margin: 0 auto 1rem auto;
+  gap: 1rem;
+  max-width: 1180px;
+  margin: 0 auto 1.25rem;
+  padding: 0 2rem;
 }
 
 .searchBar {
   flex: 1;
-  max-width: 400px;
+  max-width: 520px;
 }
 
 .searchInput {
   width: 100%;
-  padding: 0.8rem 1.2rem;
-  border-radius: 25px;
-  border: 1px solid var(--input-border);
-  font-size: 1rem;
-  background: var(--input-bg);
+  min-height: 46px;
+  padding: 0 1rem;
   color: var(--foreground);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(36, 92, 122, 0.14);
 }
 
 .uploadToggleBtn {
-  padding: 0.8rem 1.5rem;
-  background: var(--primary);
+  min-height: 46px;
+  padding: 0 1.2rem;
   color: white;
-  border-radius: 25px;
-  font-weight: bold;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: transform 0.2s;
+  background: var(--primary);
+  border-radius: 8px;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, background 0.2s;
 }
 
 .uploadToggleBtn:hover {
-  transform: translateY(-2px);
+  background: var(--primary-strong);
+  transform: translateY(-1px);
 }
 
 .uploadContainer {
-  max-width: 800px;
-  margin: 0 auto 2rem auto;
-  padding: 0 1rem;
+  max-width: 900px;
+  margin: 0 auto 1.5rem;
+  padding: 0 2rem;
 }
 
 .library {
-  padding: 0 2rem 4rem 2rem;
-  max-width: 1200px;
+  max-width: 1180px;
   margin: 0 auto;
+  padding: 0 2rem 4rem;
 }
 
 .library h2 {
-  font-size: 1.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 2px solid var(--secondary);
-  padding-bottom: 0.5rem;
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
 }
 
 .loading {
@@ -124,6 +167,46 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  font-size: 1.5rem;
-  color: #888;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 760px) {
+  .header {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 1rem;
+  }
+
+  .userMenu {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .email {
+    max-width: 42vw;
+  }
+
+  .hero,
+  .controls,
+  .library,
+  .uploadContainer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .hero h1 {
+    font-size: 2rem;
+  }
+
+  .controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .searchBar,
+  .uploadToggleBtn {
+    max-width: none;
+    width: 100%;
+  }
 }

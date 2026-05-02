@@ -19,6 +19,7 @@ firebase-debug.log*
 firestore-debug.log*
 pubsub-debug.log*
 ui-debug.log*
+reader-app/dev-server.log
 
 # misc
 .DS_Store
