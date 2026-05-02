@@ -7,6 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import styles from "./UploadBook.module.css";
 import { Book } from "@/types";
 
+const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Upload failed";
+
 export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
     const { user } = useAuth();
     const [file, setFile] = useState<File | null>(null);
@@ -91,9 +93,9 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             setAuthor("");
             if (onUploadSuccess) onUploadSuccess();
             alert("Book uploaded successfully!");
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error(err);
-            setError(err.message || "Upload failed");
+            setError(getErrorMessage(err));
         } finally {
             setUploading(false);
         }

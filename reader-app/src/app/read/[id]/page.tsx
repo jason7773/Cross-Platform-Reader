@@ -1,12 +1,11 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { doc, getDoc, setDoc, getDocFromCache } from "firebase/firestore"; // Added getDocFromCache if needed, but standard getDoc is fine
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { Book } from "@/types";
-import { useAuth } from "../../../context/AuthContext";
 import styles from "./page.module.css";
-// Dynamic imports for PDF and Epub readers to avoid SSR issues
 import dynamic from "next/dynamic";
 
 const PDFReader = dynamic(() => import("../../../components/PDFReader"), { ssr: false });
@@ -14,16 +13,17 @@ const EpubReader = dynamic(() => import("../../../components/EpubReader"), { ssr
 
 export default function ReadPage() {
     const { id } = useParams();
-    const { user } = useAuth();
     const [book, setBook] = useState<Book | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!id) return;
+
         const fetchBook = async () => {
             try {
                 const docRef = doc(db, "books", id as string);
                 const docSnap = await getDoc(docRef);
+
                 if (docSnap.exists()) {
                     setBook({ id: docSnap.id, ...docSnap.data() } as Book);
                 } else {
@@ -35,6 +35,7 @@ export default function ReadPage() {
                 setLoading(false);
             }
         };
+
         fetchBook();
     }, [id]);
 
@@ -44,7 +45,7 @@ export default function ReadPage() {
     return (
         <div className={styles.container}>
             <header className={styles.header}>
-                <a href="/" className={styles.backBtn}>← Back to Library</a>
+                <Link href="/" className={styles.backBtn}>Back to Library</Link>
                 <h1 className={styles.title}>{book.title}</h1>
             </header>
             <div className={styles.readerContainer}>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
+const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Unknown proxy error";
+
 export async function GET(request: NextRequest) {
     const url = request.nextUrl.searchParams.get("url");
 
@@ -27,8 +29,8 @@ export async function GET(request: NextRequest) {
                 "Cache-Control": "public, max-age=3600" // Cache for 1 hour
             },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Proxy error:", error);
-        return NextResponse.json({ error: "Failed to fetch file", details: error.message }, { status: 500 });
+        return NextResponse.json({ error: "Failed to fetch file", details: getErrorMessage(error) }, { status: 500 });
     }
 }

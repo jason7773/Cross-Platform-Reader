@@ -5,6 +5,8 @@ import { auth, googleProvider } from "@/firebase/config";
 import { useRouter } from "next/navigation";
 import styles from "./page.module.css";
 
+const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Authentication failed";
+
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -22,8 +24,8 @@ export default function LoginPage() {
                 await signInWithEmailAndPassword(auth, email, password);
             }
             router.push("/");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         }
     };
 
@@ -31,8 +33,8 @@ export default function LoginPage() {
         try {
             await signInWithPopup(auth, googleProvider);
             router.push("/");
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(getErrorMessage(err));
         }
     };
 

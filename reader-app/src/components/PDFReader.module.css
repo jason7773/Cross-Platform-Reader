@@ -16,6 +16,13 @@
     z-index: 10;
 }
 
+.readerBody {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+}
+
 .document {
     flex: 1;
     overflow-y: auto;
@@ -29,4 +36,78 @@
 .pdfDoc {
     display: flex;
     justify-content: center;
+}
+
+.outlinePanel {
+    width: 320px;
+    max-width: 80vw;
+    overflow-y: auto;
+    border-right: 1px solid var(--card-border);
+    background: var(--card-bg);
+    color: var(--foreground);
+    flex-shrink: 0;
+}
+
+.outlineHeader {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--card-border);
+    background: var(--card-bg);
+}
+
+.outlineHeader h2 {
+    margin: 0;
+    font-size: 1rem;
+}
+
+.outlineList,
+.outlineNestedList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.outlineItem {
+    border-bottom: 1px solid rgba(128, 128, 128, 0.16);
+}
+
+.outlineLink {
+    width: 100%;
+    padding: 0.75rem;
+    color: inherit;
+    text-align: left;
+    line-height: 1.4;
+}
+
+.outlineLink:hover:not(:disabled) {
+    background: var(--secondary);
+}
+
+.outlineLink:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.outlineEmpty {
+    margin: 1rem;
+    color: var(--muted);
+}
+
+@media (max-width: 720px) {
+    .readerBody {
+        position: relative;
+    }
+
+    .outlinePanel {
+        position: absolute;
+        inset: 0 auto 0 0;
+        z-index: 20;
+        box-shadow: 4px 0 18px rgba(0, 0, 0, 0.25);
+    }
 }

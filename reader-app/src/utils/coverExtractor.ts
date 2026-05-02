@@ -38,7 +38,7 @@ async function extractPdfCover(file: File): Promise<Blob | null> {
             viewport: viewport,
         };
 
-        // @ts-ignore - mismatch in type definition for pdfjs-dist v5
+        // @ts-expect-error - mismatch in type definition for pdfjs-dist v5
         await page.render(renderContext).promise;
 
         return new Promise((resolve) => {
