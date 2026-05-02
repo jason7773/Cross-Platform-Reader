@@ -21,6 +21,14 @@ pubsub-debug.log*
 ui-debug.log*
 reader-app/dev-server.log
 
+# local credentials
+*.service-account.json
+*service-account*.json
+serviceAccount*.json
+*.credentials.json
+.credentials/
+.runtimeconfig.json
+
 # misc
 .DS_Store
 *.pem
