@@ -1,0 +1,32 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    align-items: center;
+}
+
+.controls {
+    padding: 1rem;
+    background: white;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    border-bottom: 1px solid #eee;
+    z-index: 10;
+}
+
+.document {
+    flex: 1;
+    overflow-y: auto;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    background: #525659;
+    padding: 2rem 0;
+}
+
+.pdfDoc {
+    display: flex;
+    justify-content: center;
+}

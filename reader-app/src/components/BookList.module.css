@@ -1,0 +1,80 @@
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.card {
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+    background: var(--card-bg);
+}
+
+.card:hover {
+    box-shadow: 0 4px 14px 0 rgba(0, 0, 0, 0.1);
+}
+
+.coverPlaceholder {
+    height: 150px;
+    background: var(--secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--muted-light);
+    font-weight: bold;
+    color: var(--muted-light);
+    text-transform: uppercase;
+    position: relative;
+}
+
+.coverImage {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.info {
+    padding: 1rem;
+}
+
+.title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.author {
+    margin: 0 0 1rem 0;
+    font-size: 0.875rem;
+    color: var(--muted);
+}
+
+.actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.readBtn {
+    background: var(--primary);
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    font-size: 0.875rem;
+}
+
+.deleteBtn {
+    color: var(--muted-light);
+    font-size: 0.875rem;
+}
+
+.deleteBtn:hover {
+    color: red;
+}

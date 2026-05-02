@@ -1,0 +1,33 @@
+{
+  "name": "reader-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "epubjs": "^0.3.93",
+    "firebase": "^12.6.0",
+    "jszip": "^3.10.1",
+    "next": "^15.0.5",
+    "pdfjs-dist": "^5.4.449",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-pdf": "^10.2.0",
+    "react-reader": "^2.0.15"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^15.0.0",
+    "typescript": "^5"
+  }
+}
