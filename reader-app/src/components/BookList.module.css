@@ -38,6 +38,12 @@
     object-fit: cover;
 }
 
+.coverFallback {
+    max-width: 80%;
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
 .formatBadge {
     position: absolute;
     right: 0.65rem;

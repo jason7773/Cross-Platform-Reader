@@ -22,6 +22,7 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
     const [error, setError] = useState("");
     const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [failedCovers, setFailedCovers] = useState<Record<string, true>>({});
 
     useEffect(() => {
         if (!user) return;
@@ -107,16 +108,18 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
                 {filteredBooks.map((book) => (
                     <article key={book.id} className={styles.card}>
                         <Link href={`/read/${book.id}`} className={styles.coverPlaceholder} aria-label={`Read ${book.title}`}>
-                            {book.coverUrl ? (
+                            {book.coverUrl && !failedCovers[book.id] ? (
                                 <Image
                                     src={book.coverUrl}
                                     alt={book.title}
                                     fill
+                                    unoptimized
                                     sizes="(max-width: 640px) 45vw, (max-width: 1100px) 25vw, 220px"
                                     className={styles.coverImage}
+                                    onError={() => setFailedCovers((current) => ({ ...current, [book.id]: true }))}
                                 />
                             ) : (
-                                <span>{book.format === "pdf" ? "PDF" : "ePub"}</span>
+                                <span className={styles.coverFallback}>{book.format === "pdf" ? "PDF" : "ePub"}</span>
                             )}
                             <span className={styles.formatBadge}>{book.format}</span>
                         </Link>
