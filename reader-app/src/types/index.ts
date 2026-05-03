@@ -7,6 +7,10 @@ export interface Book {
     coverUrl?: string; // Optional cover image
     storagePath?: string;
     coverStoragePath?: string;
+    fileSize?: number;
+    mimeType?: string;
+    coverSize?: number;
+    coverMimeType?: string;
     uploadedBy: string; // User ID
     createdAt: number; // Timestamp
 }

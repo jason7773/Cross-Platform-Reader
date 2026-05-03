@@ -26,7 +26,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 
 ## Storage Delivery
 
-Book files and covers are stored in Firebase Storage. The reader loads PDF and ePub files directly from Firebase Storage download URLs so large book traffic does not pass through the Next.js `/api/proxy-file` route or Firebase Hosting's framework backend.
+Book files and covers are stored in Firebase Storage. The reader loads PDF and ePub files directly from Firebase Storage download URLs so large book traffic does not pass through Firebase Hosting's framework backend.
 
 Apply the Storage CORS policy before relying on deployed direct reads:
 
@@ -35,6 +35,14 @@ gcloud storage buckets update gs://cross-platform-reader.firebasestorage.app --c
 ```
 
 If you use a different bucket, replace the bucket name with the value of `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`.
+
+## Firebase Rules
+
+Firestore and Storage rules live in `firestore.rules` and `storage.rules`. They restrict book metadata, progress records, and stored files to the signed-in owner. Deploy them with the app:
+
+```bash
+firebase deploy --only firestore:rules,storage,hosting
+```
 
 ## Validation
 

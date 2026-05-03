@@ -1,0 +1,41 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsExistingBook() {
+      return signedIn() && resource.data.uploadedBy == request.auth.uid;
+    }
+
+    function ownsIncomingBook() {
+      return signedIn() && request.resource.data.uploadedBy == request.auth.uid;
+    }
+
+    function ownsExistingProgress() {
+      return signedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    function ownsIncomingProgress() {
+      return signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    match /books/{bookId} {
+      allow get, list, delete: if ownsExistingBook();
+      allow create: if ownsIncomingBook();
+      allow update: if ownsExistingBook() && ownsIncomingBook();
+    }
+
+    match /progress/{progressId} {
+      allow get, list, delete: if ownsExistingProgress();
+      allow create: if ownsIncomingProgress();
+      allow update: if ownsExistingProgress() && ownsIncomingProgress();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

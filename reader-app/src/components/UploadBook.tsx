@@ -8,6 +8,10 @@ import styles from "./UploadBook.module.css";
 import { Book } from "@/types";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Upload failed";
+const MAX_BOOK_SIZE_BYTES = 100 * 1024 * 1024;
+const COVER_MAX_WIDTH = 480;
+const COVER_MAX_HEIGHT = 640;
+const COVER_QUALITY = 0.78;
 
 const immutableFileMetadata = (contentType: string) => ({
     contentType,
@@ -17,6 +21,57 @@ const immutableFileMetadata = (contentType: string) => ({
 const getBookContentType = (format: "pdf" | "epub", fallback: string) => {
     if (fallback) return fallback;
     return format === "pdf" ? "application/pdf" : "application/epub+zip";
+};
+
+const loadImageFromBlob = (blob: Blob) => new Promise<HTMLImageElement>((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const image = new Image();
+
+    image.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+    };
+
+    image.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Could not read cover image."));
+    };
+
+    image.src = objectUrl;
+});
+
+const resizeCoverImage = async (blob: Blob) => {
+    if (!blob.type.startsWith("image/")) return blob;
+
+    try {
+        const image = await loadImageFromBlob(blob);
+        const scale = Math.min(
+            1,
+            COVER_MAX_WIDTH / image.naturalWidth,
+            COVER_MAX_HEIGHT / image.naturalHeight
+        );
+        const width = Math.max(1, Math.round(image.naturalWidth * scale));
+        const height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        if (!context) return blob;
+
+        canvas.width = width;
+        canvas.height = height;
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        return await new Promise<Blob>((resolve) => {
+            canvas.toBlob((resizedBlob) => {
+                resolve(resizedBlob || blob);
+            }, "image/jpeg", COVER_QUALITY);
+        });
+    } catch (err) {
+        console.error("Cover resize failed:", err);
+        return blob;
+    }
 };
 
 export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
@@ -59,6 +114,10 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 throw new Error("Only PDF and ePub formats are supported.");
             }
 
+            if (file.size > MAX_BOOK_SIZE_BYTES) {
+                throw new Error("Books must be smaller than 100 MB.");
+            }
+
             // 1. Upload book file to Storage
             const storagePath = `books/${user.uid}/${Date.now()}_${file.name}`;
             const storageRef = ref(storage, storagePath);
@@ -86,13 +145,14 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
 
             let coverStoragePath = "";
             if (finalCoverBlob) {
-                const coverName = coverFile ? coverFile.name : `auto_cover_${Date.now()}.jpg`;
+                finalCoverBlob = await resizeCoverImage(finalCoverBlob);
+                const coverName = `cover_${Date.now()}.jpg`;
                 coverStoragePath = `covers/${user.uid}/${Date.now()}_${coverName}`;
                 const coverRef = ref(storage, coverStoragePath);
                 const coverSnapshot = await uploadBytes(
                     coverRef,
                     finalCoverBlob,
-                    immutableFileMetadata(finalCoverBlob.type || "image/jpeg")
+                    immutableFileMetadata("image/jpeg")
                 );
                 coverUrl = await getDownloadURL(coverSnapshot.ref);
             }
@@ -106,6 +166,12 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 coverUrl,
                 storagePath,
                 coverStoragePath,
+                fileSize: file.size,
+                mimeType: getBookContentType(format, file.type),
+                ...(finalCoverBlob ? {
+                    coverSize: finalCoverBlob.size,
+                    coverMimeType: "image/jpeg",
+                } : {}),
                 uploadedBy: user.uid,
                 createdAt: Date.now(),
             };
