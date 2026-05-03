@@ -1,0 +1,18 @@
+[
+  {
+    "origin": [
+      "https://cross-platform-reader.web.app",
+      "http://localhost:3000"
+    ],
+    "method": ["GET", "HEAD", "OPTIONS"],
+    "responseHeader": [
+      "Accept-Ranges",
+      "Content-Length",
+      "Content-Range",
+      "Content-Type",
+      "ETag",
+      "Range"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

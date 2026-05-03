@@ -56,8 +56,7 @@ export default function EpubReader({ url, bookId, title }: { url: string; bookId
     useEffect(() => {
         const fetchEpub = async () => {
             try {
-                const proxiedUrl = `/api/proxy-file?url=${encodeURIComponent(url)}`;
-                const response = await fetch(proxiedUrl);
+                const response = await fetch(url, { cache: "force-cache" });
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch: ${response.status}`);
@@ -66,7 +65,7 @@ export default function EpubReader({ url, bookId, title }: { url: string; bookId
                 setEpubData(await response.arrayBuffer());
             } catch (err: unknown) {
                 console.error("Error fetching ePub:", err);
-                setError(getErrorMessage(err));
+                setError(`${getErrorMessage(err)}. Check Firebase Storage CORS if this only happens after deployment.`);
             } finally {
                 setLoading(false);
             }

@@ -9,6 +9,16 @@ import { Book } from "@/types";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Upload failed";
 
+const immutableFileMetadata = (contentType: string) => ({
+    contentType,
+    cacheControl: "public, max-age=31536000, immutable",
+});
+
+const getBookContentType = (format: "pdf" | "epub", fallback: string) => {
+    if (fallback) return fallback;
+    return format === "pdf" ? "application/pdf" : "application/epub+zip";
+};
+
 export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () => void }) {
     const { user } = useAuth();
     const [file, setFile] = useState<File | null>(null);
@@ -52,7 +62,11 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             // 1. Upload book file to Storage
             const storagePath = `books/${user.uid}/${Date.now()}_${file.name}`;
             const storageRef = ref(storage, storagePath);
-            const snapshot = await uploadBytes(storageRef, file);
+            const snapshot = await uploadBytes(
+                storageRef,
+                file,
+                immutableFileMetadata(getBookContentType(format, file.type))
+            );
             const url = await getDownloadURL(snapshot.ref);
 
             // 2. Upload cover image (Manual or Auto-generated)
@@ -75,7 +89,11 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 const coverName = coverFile ? coverFile.name : `auto_cover_${Date.now()}.jpg`;
                 coverStoragePath = `covers/${user.uid}/${Date.now()}_${coverName}`;
                 const coverRef = ref(storage, coverStoragePath);
-                const coverSnapshot = await uploadBytes(coverRef, finalCoverBlob);
+                const coverSnapshot = await uploadBytes(
+                    coverRef,
+                    finalCoverBlob,
+                    immutableFileMetadata(finalCoverBlob.type || "image/jpeg")
+                );
                 coverUrl = await getDownloadURL(coverSnapshot.ref);
             }
 

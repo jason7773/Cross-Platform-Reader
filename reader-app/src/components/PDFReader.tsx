@@ -19,6 +19,8 @@ type PdfOutlineItem = {
     items?: PdfOutlineItem[];
 };
 
+const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Unknown PDF error";
+
 export default function PDFReader({ url, bookId }: { url: string; bookId: string }) {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageNumber, setPageNumber] = useState<number>(1);
@@ -27,15 +29,14 @@ export default function PDFReader({ url, bookId }: { url: string; bookId: string
     const [outlineLoading, setOutlineLoading] = useState(false);
     const [isOutlineOpen, setIsOutlineOpen] = useState(false);
     const [pageWidth, setPageWidth] = useState(800);
+    const [pdfError, setPdfError] = useState<string | null>(null);
     const documentContainerRef = useRef<HTMLDivElement | null>(null);
     const { user } = useAuth();
     const { theme } = useTheme();
     const isDarkMode = theme === 'dark';
 
-    // Use proxy to avoid CORS
-    const proxiedUrl = `/api/proxy-file?url=${encodeURIComponent(url)}`;
-
     async function onDocumentLoadSuccess(pdf: DocumentCallback) {
+        setPdfError(null);
         setPdfDocument(pdf);
         setNumPages(pdf.numPages);
         setOutlineLoading(true);
@@ -181,9 +182,18 @@ export default function PDFReader({ url, bookId }: { url: string; bookId: string
                     </aside>
                 )}
                 <div className={styles.document} ref={documentContainerRef}>
+                    {pdfError && (
+                        <p className={styles.errorMessage}>
+                            {pdfError}
+                        </p>
+                    )}
                     <Document
-                        file={proxiedUrl}
+                        file={url}
                         onLoadSuccess={onDocumentLoadSuccess}
+                        onLoadError={(err) => {
+                            console.error("Failed to load PDF:", err);
+                            setPdfError(`${getErrorMessage(err)}. Check Firebase Storage CORS if this only happens after deployment.`);
+                        }}
                         className={styles.pdfDoc}
                     >
                         <div style={{ filter: isDarkMode ? 'invert(0.9) hue-rotate(180deg)' : 'none' }}>
