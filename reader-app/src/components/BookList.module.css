@@ -68,8 +68,7 @@
     font-weight: 800;
 }
 
-.toolbar select,
-.tagEditor input {
+.toolbar select {
     min-height: 38px;
     padding: 0 0.65rem;
     color: var(--foreground);
@@ -229,15 +228,6 @@
     height: 100%;
     background: var(--primary);
     border-radius: inherit;
-}
-
-.tagEditor {
-    margin-bottom: 0.75rem;
-}
-
-.tagEditor input {
-    width: 100%;
-    font-size: 0.8rem;
 }
 
 .actions {

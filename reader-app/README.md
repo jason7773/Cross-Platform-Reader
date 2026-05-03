@@ -11,7 +11,7 @@ Next.js reader app for PDF and ePub files, backed by Firebase Auth, Firestore, F
 - Local bookmarks with editable notes.
 - Offline file cache with manual save/remove controls.
 - Local progress fallback with automatic Firestore sync when network returns.
-- Library progress bars, continue-reading shortcut, tags, sorting, and grid/list views.
+- Library progress bars, continue-reading shortcut, sorting, and grid/list views.
 
 ## Local Development
 

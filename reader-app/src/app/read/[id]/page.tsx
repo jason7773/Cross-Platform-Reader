@@ -64,7 +64,7 @@ export default function ReadPage() {
                 {book.format === "pdf" ? (
                     <PDFReader url={book.url} bookId={book.id} mimeType={book.mimeType} />
                 ) : (
-                    <EpubReader url={book.url} bookId={book.id} title={book.title} mimeType={book.mimeType} />
+                    <EpubReader url={book.url} bookId={book.id} mimeType={book.mimeType} />
                 )}
             </div>
         </div>

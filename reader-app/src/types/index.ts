@@ -11,7 +11,6 @@ export interface Book {
     mimeType?: string;
     coverSize?: number;
     coverMimeType?: string;
-    tags?: string[];
     uploadedBy: string; // User ID
     createdAt: number; // Timestamp
 }
@@ -44,7 +43,6 @@ export interface EpubReaderSettings {
     fontSize: number;
     lineHeight: number;
     pageWidth: number;
-    background: string;
 }
 
 export interface PdfReaderSettings {

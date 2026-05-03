@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { collection, query, onSnapshot, orderBy, doc, deleteDoc, where, updateDoc } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, deleteDoc, where } from "firebase/firestore";
 import { ref, deleteObject } from "firebase/storage";
 import Image from "next/image";
 import { db, storage } from "@/firebase/config";
@@ -34,8 +34,6 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
     const [offlineBusyId, setOfflineBusyId] = useState<string | null>(null);
     const [sortMode, setSortMode] = useState<SortMode>("recent");
     const [viewMode, setViewMode] = useState<ViewMode>("grid");
-    const [selectedTag, setSelectedTag] = useState("");
-    const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
     const [syncPending, setSyncPending] = useState(false);
 
     useEffect(() => {
@@ -116,15 +114,6 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
     }, [user]);
 
     useEffect(() => {
-        books.forEach((book) => {
-            setTagDrafts((current) => ({
-                ...current,
-                [book.id]: (book.tags || []).join(", "),
-            }));
-        });
-    }, [books]);
-
-    useEffect(() => {
         let cancelled = false;
 
         const refreshOfflineStatus = async () => {
@@ -145,13 +134,9 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
         const normalizedQuery = searchQuery.trim().toLowerCase();
         let nextBooks = books;
 
-        if (selectedTag) {
-            nextBooks = nextBooks.filter((book) => (book.tags || []).includes(selectedTag));
-        }
-
         if (normalizedQuery) {
             nextBooks = nextBooks.filter((book) =>
-                `${book.title} ${book.author} ${book.format} ${(book.tags || []).join(" ")}`.toLowerCase().includes(normalizedQuery)
+                `${book.title} ${book.author} ${book.format}`.toLowerCase().includes(normalizedQuery)
             );
         }
 
@@ -161,17 +146,13 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
             if (sortMode === "progress") return (progressByBook[b.id]?.percentage || 0) - (progressByBook[a.id]?.percentage || 0);
             return (progressByBook[b.id]?.lastRead || b.createdAt || 0) - (progressByBook[a.id]?.lastRead || a.createdAt || 0);
         });
-    }, [books, progressByBook, searchQuery, selectedTag, sortMode]);
+    }, [books, progressByBook, searchQuery, sortMode]);
 
     const continueBook = useMemo(() => (
         books
             .filter((book) => progressByBook[book.id])
             .sort((a, b) => (progressByBook[b.id]?.lastRead || 0) - (progressByBook[a.id]?.lastRead || 0))[0]
     ), [books, progressByBook]);
-
-    const allTags = useMemo(() => (
-        Array.from(new Set(books.flatMap((book) => book.tags || []))).sort((a, b) => a.localeCompare(b))
-    ), [books]);
 
     const deleteStorageTarget = async (pathOrUrl: string) => {
         if (!pathOrUrl) return;
@@ -230,21 +211,6 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
         }
     };
 
-    const saveTags = async (book: Book) => {
-        const tags = (tagDrafts[book.id] || "")
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter(Boolean)
-            .slice(0, 8);
-
-        try {
-            await updateDoc(doc(db, "books", book.id), { tags });
-        } catch (err) {
-            console.error("Could not save tags:", err);
-            setError("Could not save tags.");
-        }
-    };
-
     const formatLastRead = (timestamp?: number) => {
         if (!timestamp) return "Not started";
 
@@ -280,13 +246,6 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
                         <option value="title">Title</option>
                         <option value="author">Author</option>
                         <option value="progress">Progress</option>
-                    </select>
-                </label>
-                <label>
-                    <span>Tag</span>
-                    <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
-                        <option value="">All</option>
-                        {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
                     </select>
                 </label>
                 <div className={styles.segmented}>
@@ -328,20 +287,6 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
                                 <div className={styles.progressTrack}>
                                     <span style={{ width: `${Math.round(progressByBook[book.id]?.percentage || 0)}%` }} />
                                 </div>
-                            </div>
-                            <div className={styles.tagEditor}>
-                                <input
-                                    type="text"
-                                    value={tagDrafts[book.id] || ""}
-                                    onChange={(event) => setTagDrafts((current) => ({ ...current, [book.id]: event.target.value }))}
-                                    onBlur={() => saveTags(book)}
-                                    onKeyDown={(event) => {
-                                        if (event.key === "Enter") {
-                                            event.currentTarget.blur();
-                                        }
-                                    }}
-                                    placeholder="Tags, comma separated"
-                                />
                             </div>
                             <div className={styles.actions}>
                                 <Link href={`/read/${book.id}`} className={styles.readBtn}>

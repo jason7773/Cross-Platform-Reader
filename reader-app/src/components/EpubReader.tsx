@@ -57,6 +57,8 @@ type EpubCurrentLocation = {
     };
 };
 
+type EpubPanelMode = "toc" | "settings" | "search" | "bookmarks";
+
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Unknown error";
 
 const clampPercent = (value: number) => Math.min(100, Math.max(0, Math.round(value)));
@@ -67,8 +69,11 @@ const formatProgress = (percentage: number | null) => {
 };
 
 const createThemeRules = (settings: EpubReaderSettings, isDarkMode: boolean) => ({
+    html: {
+        background: isDarkMode ? "#222" : "#fff",
+    },
     body: {
-        background: isDarkMode ? "#222" : settings.background,
+        background: isDarkMode ? "#222" : "#fff",
         color: isDarkMode ? "#fff" : "#1f2933",
         "font-size": `${settings.fontSize}%`,
         "line-height": String(settings.lineHeight),
@@ -80,7 +85,7 @@ const createThemeRules = (settings: EpubReaderSettings, isDarkMode: boolean) => 
     },
 });
 
-export default function EpubReader({ url, bookId, title, mimeType }: { url: string; bookId: string; title: string; mimeType?: string }) {
+export default function EpubReader({ url, bookId, mimeType }: { url: string; bookId: string; mimeType?: string }) {
     const [location, setLocation] = useState<string | number | null>(null);
     const [epubData, setEpubData] = useState<ArrayBuffer | null>(null);
     const [loading, setLoading] = useState(true);
@@ -88,6 +93,7 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
     const [isProgressLoaded, setIsProgressLoaded] = useState(false);
     const [toc, setToc] = useState<EpubTocItem[]>([]);
     const [isTocOpen, setIsTocOpen] = useState(false);
+    const [panelMode, setPanelMode] = useState<EpubPanelMode>("toc");
     const [progressPercent, setProgressPercent] = useState<number | null>(null);
     const [activeHref, setActiveHref] = useState("");
     const [cacheStatus, setCacheStatus] = useState("Loading file");
@@ -278,7 +284,7 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
         }
     };
 
-    const getTocItemKey = (item: EpubTocItem, parentKey: string) => {
+    const getTocItemKeyBase = (item: EpubTocItem, parentKey: string) => {
         const ownKey = item.href
             ? normalizeHrefForActive(item.href)
             : (item.id || item.label || "section").trim().toLowerCase();
@@ -390,11 +396,17 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
         }
     };
 
-    const renderTocItems = (items: EpubTocItem[], depth = 0, parentKey = "toc") => (
-        <ul className={styles.tocList}>
-            {items.map((item) => {
+    const renderTocItems = (items: EpubTocItem[], depth = 0, parentKey = "toc") => {
+        const siblingKeyCounts = new Map<string, number>();
+
+        return (
+            <ul className={styles.tocList}>
+                {items.map((item) => {
                 const children = item.subitems || item.items || [];
-                const itemKey = getTocItemKey(item, parentKey);
+                const itemKeyBase = getTocItemKeyBase(item, parentKey);
+                const seenCount = siblingKeyCounts.get(itemKeyBase) || 0;
+                siblingKeyCounts.set(itemKeyBase, seenCount + 1);
+                const itemKey = seenCount > 0 ? `${itemKeyBase}~${seenCount}` : itemKeyBase;
                 const isActive = isTocItemActive(item.href);
 
                 return (
@@ -414,9 +426,10 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
                         {children.length > 0 && renderTocItems(children, depth + 1, itemKey)}
                     </li>
                 );
-            })}
-        </ul>
-    );
+                })}
+            </ul>
+        );
+    };
 
     if (loading || !isProgressLoaded) {
         return <div className={styles.status}>Loading ePub...</div>;
@@ -435,7 +448,10 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
             <div className={styles.readerControls}>
                 <button
                     type="button"
-                    onClick={() => setIsTocOpen(!isTocOpen)}
+                    onClick={() => {
+                        setPanelMode("toc");
+                        setIsTocOpen(!isTocOpen);
+                    }}
                     className={styles.readerControlButton}
                 >
                     Contents
@@ -444,13 +460,60 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
 
             {isTocOpen && (
                 <div className={styles.tocPanel}>
-                    <button
-                        onClick={() => setIsTocOpen(false)}
-                        className={styles.closeButton}
-                    >
-                        Close
-                    </button>
-                    <h3 className={styles.tocTitle}>Contents</h3>
+                    <div className={styles.panelHeader}>
+                        <h3 className={styles.tocTitle}>
+                            {panelMode === "toc" && "Contents"}
+                            {panelMode === "settings" && "Settings"}
+                            {panelMode === "search" && "Search"}
+                            {panelMode === "bookmarks" && "Bookmarks"}
+                        </h3>
+                        <div className={styles.panelTools}>
+                            <button
+                                type="button"
+                                className={panelMode === "toc" ? styles.activeTool : ""}
+                                onClick={() => setPanelMode("toc")}
+                                aria-label="Show contents"
+                                title="Contents"
+                            >
+                                List
+                            </button>
+                            <button
+                                type="button"
+                                className={panelMode === "settings" ? styles.activeTool : ""}
+                                onClick={() => setPanelMode("settings")}
+                                aria-label="Show reader settings"
+                                title="Settings"
+                            >
+                                Aa
+                            </button>
+                            <button
+                                type="button"
+                                className={panelMode === "search" ? styles.activeTool : ""}
+                                onClick={() => setPanelMode("search")}
+                                aria-label="Search this book"
+                                title="Search"
+                            >
+                                Find
+                            </button>
+                            <button
+                                type="button"
+                                className={panelMode === "bookmarks" ? styles.activeTool : ""}
+                                onClick={() => setPanelMode("bookmarks")}
+                                aria-label="Show bookmarks"
+                                title="Bookmarks"
+                            >
+                                Mark
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsTocOpen(false)}
+                                aria-label="Close panel"
+                                title="Close"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
                     <div className={styles.progressHud} aria-label={`Reading progress ${formatProgress(progressPercent)}`}>
                         <div className={styles.progressMeta}>
                             <span>{formatProgress(progressPercent)}</span>
@@ -463,7 +526,11 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
                             />
                         </div>
                     </div>
-                    <section className={styles.panelSection}>
+                    {panelMode === "toc" && (
+                        toc.length > 0 ? renderTocItems(toc) : <p className={styles.emptyToc}>No contents found.</p>
+                    )}
+                    {panelMode === "settings" && (
+                        <section className={styles.panelSection}>
                         <h3>Settings</h3>
                         <label className={styles.settingRow}>
                             <span>Text</span>
@@ -501,8 +568,10 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
                             />
                             <strong>{settings.pageWidth}px</strong>
                         </label>
-                    </section>
-                    <section className={styles.panelSection}>
+                        </section>
+                    )}
+                    {panelMode === "search" && (
+                        <section className={styles.panelSection}>
                         <h3>Search</h3>
                         <div className={styles.searchRow}>
                             <input
@@ -520,15 +589,17 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
                         </div>
                         <div className={styles.resultList}>
                             {searchResults.map((result) => (
-                                <button key={result.href} type="button" onClick={() => handleNavigate(result.href)}>
+                                <button key={`${result.href}-${result.snippet}`} type="button" onClick={() => handleNavigate(result.href)}>
                                     <strong>{result.label}</strong>
                                     <span>{result.snippet}</span>
                                 </button>
                             ))}
                             {!searching && searchQuery && searchResults.length === 0 && <p>No matches yet.</p>}
                         </div>
-                    </section>
-                    <section className={styles.panelSection}>
+                        </section>
+                    )}
+                    {panelMode === "bookmarks" && (
+                        <section className={styles.panelSection}>
                         <h3>Bookmarks</h3>
                         <div className={styles.searchRow}>
                             <input
@@ -561,8 +632,8 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
                             ))}
                             {bookmarks.length === 0 && <p>No bookmarks yet.</p>}
                         </div>
-                    </section>
-                    {toc.length > 0 ? renderTocItems(toc) : <p className={styles.emptyToc}>No contents found.</p>}
+                        </section>
+                    )}
                 </div>
             )}
 
@@ -579,7 +650,6 @@ export default function EpubReader({ url, bookId, title, mimeType }: { url: stri
                 locationChanged={handleLocationChanged}
                 tocChanged={(items) => setToc(items as EpubTocItem[])}
                 showToc={false}
-                title={title}
                 getRendition={(rendition: EpubRendition) => {
                     renditionRef.current = rendition;
                     const themeName = isDarkMode ? "dark" : "light";

@@ -2,7 +2,7 @@
     position: relative;
     height: 100%;
     overflow: hidden;
-    background: var(--surface);
+    background: #fff;
 }
 
 .status,
@@ -57,24 +57,43 @@
     box-shadow: 4px 0 20px rgba(0, 0, 0, 0.28);
 }
 
-.closeButton {
-    position: absolute;
-    top: calc(0.75rem + env(safe-area-inset-top));
-    right: 0.75rem;
-    min-height: 38px;
-    padding: 0 0.75rem;
-    color: var(--foreground);
-    background: var(--surface-raised);
-    border: 1px solid var(--card-border);
-    border-radius: 8px;
-    font-weight: 800;
+.panelHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.9rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--card-border);
 }
 
 .tocTitle {
-    margin: 0 0 0.9rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--card-border);
+    margin: 0;
     font-size: 1rem;
+}
+
+.panelTools {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+}
+
+.panelTools button {
+    min-height: 34px;
+    padding: 0 0.55rem;
+    color: var(--muted);
+    background: var(--surface-raised);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 900;
+}
+
+.panelTools button:not(:disabled):hover,
+.activeTool {
+    color: var(--foreground) !important;
+    background: var(--secondary) !important;
 }
 
 .tocList {

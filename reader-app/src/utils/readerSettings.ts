@@ -7,7 +7,6 @@ export const DEFAULT_EPUB_SETTINGS: EpubReaderSettings = {
     fontSize: 100,
     lineHeight: 1.6,
     pageWidth: 720,
-    background: "#fff8ef",
 };
 
 export const DEFAULT_PDF_SETTINGS: PdfReaderSettings = {
