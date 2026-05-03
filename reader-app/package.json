@@ -9,7 +9,7 @@
     "lint": "eslint"
   },
   "engines": {
-    "node": "20"
+    "node": "22"
   },
   "dependencies": {
     "epubjs": "^0.3.93",
@@ -23,7 +23,7 @@
     "react-reader": "^2.0.15"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
