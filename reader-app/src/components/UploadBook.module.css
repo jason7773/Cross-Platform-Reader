@@ -94,3 +94,25 @@
     color: var(--primary-strong);
     background: rgba(36, 92, 122, 0.1);
 }
+
+@media (max-width: 560px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .dropZone {
+        padding: 1.15rem 0.85rem;
+    }
+
+    .fileLabel {
+        display: block;
+        overflow-wrap: anywhere;
+        line-height: 1.35;
+    }
+
+    .input,
+    .button {
+        min-height: 48px;
+        font-size: 1rem;
+    }
+}

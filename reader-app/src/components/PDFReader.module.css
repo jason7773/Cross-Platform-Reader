@@ -3,6 +3,7 @@
     flex-direction: column;
     height: 100%;
     align-items: center;
+    overflow: hidden;
 }
 
 .controls {
@@ -14,6 +15,24 @@
     gap: 1rem;
     border-bottom: 1px solid #eee;
     z-index: 10;
+}
+
+.controls button {
+    min-height: 40px;
+    padding: 0 0.85rem;
+    color: var(--foreground);
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-weight: 800;
+}
+
+.controls button:not(:disabled):hover {
+    background: var(--secondary);
+}
+
+.controls button:disabled {
+    opacity: 0.5;
 }
 
 .readerBody {
@@ -30,7 +49,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     background: #525659;
     padding: 2rem 0;
 }
@@ -113,14 +132,67 @@
 }
 
 @media (max-width: 720px) {
+    .container {
+        position: relative;
+    }
+
+    .controls {
+        position: absolute;
+        right: 0.75rem;
+        bottom: calc(0.75rem + env(safe-area-inset-bottom));
+        left: 0.75rem;
+        width: auto;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.55rem;
+        background: color-mix(in srgb, var(--surface) 92%, transparent);
+        border: 1px solid var(--card-border);
+        border-radius: 8px;
+        box-shadow: var(--shadow-md);
+    }
+
+    .controls button {
+        min-height: 38px;
+        padding: 0 0.65rem;
+        font-size: 0.82rem;
+    }
+
+    .controls span {
+        order: 4;
+        width: 100%;
+        text-align: center;
+        font-size: 0.82rem;
+    }
+
     .readerBody {
         position: relative;
     }
 
+    .document {
+        padding: 1rem 0 7.5rem;
+    }
+
     .outlinePanel {
         position: absolute;
-        inset: 0 auto 0 0;
+        inset: 0;
+        width: min(340px, 88vw);
+        max-width: none;
         z-index: 20;
         box-shadow: 4px 0 18px rgba(0, 0, 0, 0.25);
+    }
+
+    .outlineHeader {
+        padding-top: calc(0.875rem + env(safe-area-inset-top));
+    }
+}
+
+@media (min-width: 721px) and (max-width: 1024px) {
+    .outlinePanel {
+        width: 300px;
+    }
+
+    .document {
+        padding: 1.5rem 0;
     }
 }

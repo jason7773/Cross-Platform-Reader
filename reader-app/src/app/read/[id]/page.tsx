@@ -39,13 +39,13 @@ export default function ReadPage() {
         fetchBook();
     }, [id]);
 
-    if (loading) return <div>Loading book...</div>;
-    if (!book) return <div>Book not found</div>;
+    if (loading) return <div className={styles.status}>Loading book...</div>;
+    if (!book) return <div className={styles.status}>Book not found</div>;
 
     return (
         <div className={styles.container}>
             <header className={styles.header}>
-                <Link href="/" className={styles.backBtn}>Back to Library</Link>
+                <Link href="/" className={styles.backBtn} aria-label="Back to library">Library</Link>
                 <h1 className={styles.title}>{book.title}</h1>
             </header>
             <div className={styles.readerContainer}>

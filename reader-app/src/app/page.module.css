@@ -1,5 +1,6 @@
 .main {
   min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
   background:
     linear-gradient(180deg, rgba(185, 109, 64, 0.08), transparent 280px),
     var(--background);
@@ -131,6 +132,7 @@
 
 .uploadToggleBtn {
   min-height: 46px;
+  flex: 0 0 auto;
   padding: 0 1.2rem;
   color: white;
   background: var(--primary);
@@ -173,18 +175,25 @@
 
 @media (max-width: 760px) {
   .header {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
+    gap: 0.75rem;
     padding: 1rem;
   }
 
   .userMenu {
-    width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
+    gap: 0.55rem;
+    min-width: 0;
   }
 
   .email {
-    max-width: 42vw;
+    display: none;
+  }
+
+  .logoutBtn {
+    min-height: 40px;
+    padding: 0 0.8rem;
   }
 
   .hero,
@@ -195,8 +204,23 @@
     padding-right: 1rem;
   }
 
+  .hero {
+    padding-top: 1.2rem;
+    padding-bottom: 1rem;
+  }
+
+  .hero > div {
+    padding: 1.2rem;
+  }
+
   .hero h1 {
-    font-size: 2rem;
+    font-size: 1.75rem;
+    line-height: 1.15;
+  }
+
+  .hero p {
+    font-size: 0.95rem;
+    line-height: 1.55;
   }
 
   .controls {
@@ -208,5 +232,38 @@
   .uploadToggleBtn {
     max-width: none;
     width: 100%;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1024px) {
+  .header,
+  .hero,
+  .controls,
+  .library,
+  .uploadContainer {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .hero h1 {
+    font-size: 2.15rem;
+  }
+
+  .email {
+    max-width: 180px;
+  }
+}
+
+@media (max-width: 420px) {
+  .logo {
+    font-size: 1.05rem;
+  }
+
+  .hero > div {
+    padding: 1rem;
+  }
+
+  .hero h1 {
+    font-size: 1.5rem;
   }
 }

@@ -5,6 +5,7 @@ import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
+import styles from "./EpubReader.module.css";
 
 type EpubTocItem = {
     id?: string;
@@ -197,27 +198,19 @@ export default function EpubReader({ url, bookId, title }: { url: string; bookId
     };
 
     const renderTocItems = (items: EpubTocItem[], depth = 0, parentKey = "toc") => (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+        <ul className={styles.tocList}>
             {items.map((item, index) => {
                 const children = item.subitems || item.items || [];
                 const itemKey = `${parentKey}-${index}-${item.id || item.href || item.label || "section"}`;
 
                 return (
-                    <li key={itemKey} style={{ marginBottom: 0, borderBottom: "1px solid rgba(128,128,128,0.2)" }}>
+                    <li key={itemKey} className={styles.tocItem}>
                         <button
                             onClick={() => item.href && handleNavigate(item.href)}
                             disabled={!item.href}
+                            className={styles.tocItemButton}
                             style={{
-                                background: "none",
-                                border: "none",
-                                color: "inherit",
-                                cursor: item.href ? "pointer" : "default",
-                                textAlign: "left",
-                                width: "100%",
-                                padding: "12px 5px",
-                                paddingLeft: `${5 + depth * 16}px`,
-                                fontSize: "15px",
-                                lineHeight: "1.4",
+                                paddingLeft: `${0.7 + depth * 1}rem`,
                                 opacity: item.href ? 1 : 0.6
                             }}
                         >
@@ -231,88 +224,43 @@ export default function EpubReader({ url, bookId, title }: { url: string; bookId
     );
 
     if (loading || !isProgressLoaded) {
-        return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>Loading ePub...</div>;
+        return <div className={styles.status}>Loading ePub...</div>;
     }
 
     if (error) {
-        return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%", color: "red" }}>Error: {error}</div>;
+        return <div className={styles.error}>Error: {error}</div>;
     }
 
     if (!epubData) {
-        return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>No data available</div>;
+        return <div className={styles.status}>No data available</div>;
     }
 
     return (
-        <div style={{ height: "100%", position: "relative", overflow: "hidden" }}>
+        <div className={styles.container}>
             <button
                 onClick={() => setIsTocOpen(!isTocOpen)}
-                style={{
-                    position: "absolute",
-                    top: "10px",
-                    left: "10px",
-                    zIndex: 100,
-                    background: isDarkMode ? "#333" : "#fff",
-                    color: isDarkMode ? "#fff" : "#000",
-                    border: "1px solid #ccc",
-                    borderRadius: "4px",
-                    padding: "8px 12px",
-                    cursor: "pointer",
-                    boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-                    fontWeight: "bold",
-                    fontSize: "14px"
-                }}
+                className={styles.tocButton}
             >
                 Contents
             </button>
 
             {isTocOpen && (
-                <div style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    width: "300px",
-                    maxWidth: "80%",
-                    background: isDarkMode ? "#222" : "#fff",
-                    color: isDarkMode ? "#fff" : "#000",
-                    zIndex: 102,
-                    overflowY: "auto",
-                    padding: "60px 20px 20px 20px",
-                    boxShadow: "2px 0 10px rgba(0,0,0,0.3)",
-                    borderRight: "1px solid #ccc"
-                }}>
+                <div className={styles.tocPanel}>
                     <button
                         onClick={() => setIsTocOpen(false)}
-                        style={{
-                            position: "absolute",
-                            top: "10px",
-                            right: "10px",
-                            background: "none",
-                            border: "none",
-                            color: "inherit",
-                            fontSize: "14px",
-                            cursor: "pointer"
-                        }}
+                        className={styles.closeButton}
                     >
                         Close
                     </button>
-                    <h3 style={{ marginBottom: "20px", borderBottom: "1px solid #666", paddingBottom: "10px" }}>Contents</h3>
-                    {toc.length > 0 ? renderTocItems(toc) : <p style={{ color: isDarkMode ? "#bbb" : "#666" }}>No contents found.</p>}
+                    <h3 className={styles.tocTitle}>Contents</h3>
+                    {toc.length > 0 ? renderTocItems(toc) : <p className={styles.emptyToc}>No contents found.</p>}
                 </div>
             )}
 
             {isTocOpen && (
                 <div
                     onClick={() => setIsTocOpen(false)}
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        background: "rgba(0,0,0,0.5)",
-                        zIndex: 100
-                    }}
+                    className={styles.scrim}
                 />
             )}
 
