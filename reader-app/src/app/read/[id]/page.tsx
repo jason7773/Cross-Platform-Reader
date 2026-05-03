@@ -7,6 +7,7 @@ import { db } from "@/firebase/config";
 import { Book } from "@/types";
 import styles from "./page.module.css";
 import dynamic from "next/dynamic";
+import { cacheBookMetadata, getCachedBookMetadata } from "@/utils/bookMetadataCache";
 
 const PDFReader = dynamic(() => import("../../../components/PDFReader"), { ssr: false });
 const EpubReader = dynamic(() => import("../../../components/EpubReader"), { ssr: false });
@@ -25,12 +26,23 @@ export default function ReadPage() {
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    setBook({ id: docSnap.id, ...docSnap.data() } as Book);
+                    const loadedBook = { id: docSnap.id, ...docSnap.data() } as Book;
+                    setBook(loadedBook);
+                    cacheBookMetadata(loadedBook);
                 } else {
-                    alert("Book not found");
+                    const cachedBook = getCachedBookMetadata(id as string);
+                    if (cachedBook) {
+                        setBook(cachedBook);
+                    } else {
+                        alert("Book not found");
+                    }
                 }
             } catch (err) {
                 console.error(err);
+                const cachedBook = getCachedBookMetadata(id as string);
+                if (cachedBook) {
+                    setBook(cachedBook);
+                }
             } finally {
                 setLoading(false);
             }
@@ -50,9 +62,9 @@ export default function ReadPage() {
             </header>
             <div className={styles.readerContainer}>
                 {book.format === "pdf" ? (
-                    <PDFReader url={book.url} bookId={book.id} />
+                    <PDFReader url={book.url} bookId={book.id} mimeType={book.mimeType} />
                 ) : (
-                    <EpubReader url={book.url} bookId={book.id} title={book.title} />
+                    <EpubReader url={book.url} bookId={book.id} title={book.title} mimeType={book.mimeType} />
                 )}
             </div>
         </div>

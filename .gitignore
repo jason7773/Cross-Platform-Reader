@@ -20,6 +20,7 @@ firestore-debug.log*
 pubsub-debug.log*
 ui-debug.log*
 reader-app/dev-server.log
+reader-app/dev-server.err.log
 
 # local credentials
 *.service-account.json

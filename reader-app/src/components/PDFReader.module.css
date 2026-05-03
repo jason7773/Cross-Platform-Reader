@@ -7,17 +7,21 @@
 }
 
 .controls {
+    position: relative;
     padding: 1rem;
     background: white;
     width: 100%;
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 1rem;
     border-bottom: 1px solid #eee;
     z-index: 10;
 }
 
-.controls button {
+.controls button,
+.panelSection button,
+.panelSection select {
     min-height: 40px;
     padding: 0 0.85rem;
     color: var(--foreground);
@@ -27,12 +31,57 @@
     font-weight: 800;
 }
 
-.controls button:not(:disabled):hover {
+.controls button:not(:disabled):hover,
+.panelSection button:not(:disabled):hover {
     background: var(--secondary);
 }
 
-.controls button:disabled {
+.controls button:disabled,
+.panelSection button:disabled {
     opacity: 0.5;
+}
+
+.controls > span {
+    display: inline-flex;
+    align-items: center;
+}
+
+.progressGroup {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.35rem;
+    margin: 0.75rem 1rem;
+    padding: 0.6rem 0.7rem;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.progressMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--muted);
+}
+
+.progressTrack {
+    height: 6px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--muted) 22%, transparent);
+    border-radius: 999px;
+}
+
+.progressFill {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    border-radius: inherit;
+    transition: width 180ms ease;
 }
 
 .readerBody {
@@ -68,6 +117,16 @@
     color: #9f1239;
     font-weight: 700;
     line-height: 1.45;
+}
+
+.loadingMessage {
+    max-width: min(720px, calc(100% - 2rem));
+    margin: 0;
+    padding: 0.875rem 1rem;
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 800;
 }
 
 .outlinePanel {
@@ -115,10 +174,21 @@
     color: inherit;
     text-align: left;
     line-height: 1.4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
 }
 
 .outlineLink:hover:not(:disabled) {
     background: var(--secondary);
+}
+
+.outlineLinkActive {
+    background: #ead8b7;
+    border-left: 3px solid #b59663;
+    color: inherit;
+    font-weight: 800;
 }
 
 .outlineLink:disabled {
@@ -129,6 +199,89 @@
 .outlineEmpty {
     margin: 1rem;
     color: var(--muted);
+}
+
+.panelSection {
+    padding: 0.95rem 1rem;
+    border-top: 1px solid var(--card-border);
+}
+
+.panelSection h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+}
+
+.settingRow {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.7rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.settingRow input,
+.settingRow select,
+.searchRow input,
+.bookmarkItem input {
+    min-height: 38px;
+    min-width: 0;
+    padding: 0 0.65rem;
+    color: var(--foreground);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+
+.searchRow {
+    display: flex;
+    gap: 0.55rem;
+    margin-bottom: 0.65rem;
+}
+
+.searchRow input {
+    flex: 1;
+}
+
+.resultList,
+.bookmarkList {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.resultList button,
+.bookmarkItem {
+    padding: 0.65rem;
+    text-align: left;
+    background: var(--surface-raised);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.resultList button {
+    display: grid;
+    gap: 0.3rem;
+    color: inherit;
+}
+
+.resultList span,
+.bookmarkList p,
+.resultList p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.bookmarkItem {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.bookmarkItem button {
+    justify-self: start;
 }
 
 @media (max-width: 720px) {
@@ -158,11 +311,16 @@
         font-size: 0.82rem;
     }
 
-    .controls span {
+    .controls > span {
         order: 4;
         width: 100%;
         text-align: center;
         font-size: 0.82rem;
+    }
+
+    .progressGroup {
+        margin: 0.75rem;
+        max-width: none;
     }
 
     .readerBody {

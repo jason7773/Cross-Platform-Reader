@@ -2,6 +2,17 @@
 
 Next.js reader app for PDF and ePub files, backed by Firebase Auth, Firestore, Firebase Storage, and Firebase Hosting.
 
+## Features
+
+- PDF and ePub reading with saved percentage progress.
+- Contents panel with current chapter/section marking.
+- Reader settings for PDF zoom/page mode and ePub text size, line spacing, and reading width.
+- In-book search for PDF pages and ePub chapters.
+- Local bookmarks with editable notes.
+- Offline file cache with manual save/remove controls.
+- Local progress fallback with automatic Firestore sync when network returns.
+- Library progress bars, continue-reading shortcut, tags, sorting, and grid/list views.
+
 ## Local Development
 
 ```bash

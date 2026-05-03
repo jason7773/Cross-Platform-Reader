@@ -1,17 +1,23 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { collection, query, onSnapshot, orderBy, doc, deleteDoc, where } from "firebase/firestore";
+import { collection, query, onSnapshot, orderBy, doc, deleteDoc, where, updateDoc } from "firebase/firestore";
 import { ref, deleteObject } from "firebase/storage";
 import Image from "next/image";
 import { db, storage } from "@/firebase/config";
-import { Book } from "@/types";
+import { Book, ReadingProgress } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import styles from "./BookList.module.css";
+import { cacheBookFromUrl, deleteCachedBook, isBookCached } from "@/utils/bookCache";
+import { cacheBookMetadata, deleteCachedBookMetadata } from "@/utils/bookMetadataCache";
+import { getAllLocalProgress, hasPendingProgress, syncPendingProgress } from "@/utils/readingProgress";
 
 type BookListProps = {
     searchQuery?: string;
 };
+
+type SortMode = "recent" | "title" | "author" | "progress";
+type ViewMode = "grid" | "list";
 
 const getStorageTarget = (path?: string, url?: string) => path || url || "";
 
@@ -23,6 +29,14 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
     const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [failedCovers, setFailedCovers] = useState<Record<string, true>>({});
+    const [progressByBook, setProgressByBook] = useState<Record<string, ReadingProgress>>({});
+    const [offlineByBook, setOfflineByBook] = useState<Record<string, boolean>>({});
+    const [offlineBusyId, setOfflineBusyId] = useState<string | null>(null);
+    const [sortMode, setSortMode] = useState<SortMode>("recent");
+    const [viewMode, setViewMode] = useState<ViewMode>("grid");
+    const [selectedTag, setSelectedTag] = useState("");
+    const [tagDrafts, setTagDrafts] = useState<Record<string, string>>({});
+    const [syncPending, setSyncPending] = useState(false);
 
     useEffect(() => {
         if (!user) return;
@@ -42,6 +56,7 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
                     ...doc.data(),
                 })) as Book[];
                 setBooks(booksData);
+                booksData.forEach(cacheBookMetadata);
                 setError("");
                 setLoading(false);
             },
@@ -55,14 +70,108 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
         return () => unsubscribe();
     }, [user]);
 
+    useEffect(() => {
+        if (!user) return;
+
+        const q = query(
+            collection(db, "progress"),
+            where("userId", "==", user.uid)
+        );
+
+        const unsubscribe = onSnapshot(
+            q,
+            (snapshot) => {
+                const remoteProgress = snapshot.docs.map((doc) => doc.data() as ReadingProgress);
+                const localProgress = getAllLocalProgress(user.uid);
+                const merged = [...remoteProgress, ...localProgress].reduce<Record<string, ReadingProgress>>((acc, item) => {
+                    const current = acc[item.bookId];
+                    if (!current || item.lastRead > current.lastRead) {
+                        acc[item.bookId] = item;
+                    }
+                    return acc;
+                }, {});
+
+                setProgressByBook(merged);
+                setSyncPending(hasPendingProgress(user.uid));
+            },
+            (err) => {
+                console.error("Error loading progress:", err);
+                const localProgress = getAllLocalProgress(user.uid);
+                setProgressByBook(Object.fromEntries(localProgress.map((item) => [item.bookId, item])));
+                setSyncPending(hasPendingProgress(user.uid));
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user]);
+
+    useEffect(() => {
+        if (!user) return;
+
+        syncPendingProgress(user).finally(() => setSyncPending(hasPendingProgress(user.uid)));
+        const sync = () => syncPendingProgress(user).finally(() => setSyncPending(hasPendingProgress(user.uid)));
+        window.addEventListener("online", sync);
+
+        return () => window.removeEventListener("online", sync);
+    }, [user]);
+
+    useEffect(() => {
+        books.forEach((book) => {
+            setTagDrafts((current) => ({
+                ...current,
+                [book.id]: (book.tags || []).join(", "),
+            }));
+        });
+    }, [books]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const refreshOfflineStatus = async () => {
+            const entries = await Promise.all(books.map(async (book) => [book.id, await isBookCached(book.url)] as const));
+            if (!cancelled) {
+                setOfflineByBook(Object.fromEntries(entries));
+            }
+        };
+
+        refreshOfflineStatus();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [books]);
+
     const filteredBooks = useMemo(() => {
         const normalizedQuery = searchQuery.trim().toLowerCase();
-        if (!normalizedQuery) return books;
+        let nextBooks = books;
 
-        return books.filter((book) =>
-            `${book.title} ${book.author} ${book.format}`.toLowerCase().includes(normalizedQuery)
-        );
-    }, [books, searchQuery]);
+        if (selectedTag) {
+            nextBooks = nextBooks.filter((book) => (book.tags || []).includes(selectedTag));
+        }
+
+        if (normalizedQuery) {
+            nextBooks = nextBooks.filter((book) =>
+                `${book.title} ${book.author} ${book.format} ${(book.tags || []).join(" ")}`.toLowerCase().includes(normalizedQuery)
+            );
+        }
+
+        return [...nextBooks].sort((a, b) => {
+            if (sortMode === "title") return a.title.localeCompare(b.title);
+            if (sortMode === "author") return a.author.localeCompare(b.author);
+            if (sortMode === "progress") return (progressByBook[b.id]?.percentage || 0) - (progressByBook[a.id]?.percentage || 0);
+            return (progressByBook[b.id]?.lastRead || b.createdAt || 0) - (progressByBook[a.id]?.lastRead || a.createdAt || 0);
+        });
+    }, [books, progressByBook, searchQuery, selectedTag, sortMode]);
+
+    const continueBook = useMemo(() => (
+        books
+            .filter((book) => progressByBook[book.id])
+            .sort((a, b) => (progressByBook[b.id]?.lastRead || 0) - (progressByBook[a.id]?.lastRead || 0))[0]
+    ), [books, progressByBook]);
+
+    const allTags = useMemo(() => (
+        Array.from(new Set(books.flatMap((book) => book.tags || []))).sort((a, b) => a.localeCompare(b))
+    ), [books]);
 
     const deleteStorageTarget = async (pathOrUrl: string) => {
         if (!pathOrUrl) return;
@@ -89,6 +198,10 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
             });
 
             await deleteDoc(doc(db, "books", book.id));
+            deleteCachedBook(book.url).catch((err) => {
+                console.warn("Could not delete cached book file:", err);
+            });
+            deleteCachedBookMetadata(book.id);
             setDeleteTarget(null);
         } catch (err) {
             console.error("Error deleting book:", err);
@@ -98,13 +211,91 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
         }
     };
 
+    const toggleOffline = async (book: Book) => {
+        setOfflineBusyId(book.id);
+
+        try {
+            if (offlineByBook[book.id]) {
+                await deleteCachedBook(book.url);
+                setOfflineByBook((current) => ({ ...current, [book.id]: false }));
+            } else {
+                await cacheBookFromUrl(book.url);
+                setOfflineByBook((current) => ({ ...current, [book.id]: true }));
+            }
+        } catch (err) {
+            console.error("Offline cache action failed:", err);
+            setError("Could not update offline copy. Try again in a moment.");
+        } finally {
+            setOfflineBusyId(null);
+        }
+    };
+
+    const saveTags = async (book: Book) => {
+        const tags = (tagDrafts[book.id] || "")
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean)
+            .slice(0, 8);
+
+        try {
+            await updateDoc(doc(db, "books", book.id), { tags });
+        } catch (err) {
+            console.error("Could not save tags:", err);
+            setError("Could not save tags.");
+        }
+    };
+
+    const formatLastRead = (timestamp?: number) => {
+        if (!timestamp) return "Not started";
+
+        return new Intl.DateTimeFormat(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        }).format(timestamp);
+    };
+
     if (loading) return <div className={styles.status}>Loading library...</div>;
     if (error && books.length === 0) return <div className={styles.status}>{error}</div>;
 
     return (
         <>
             {error && <div className={styles.inlineError}>{error}</div>}
-            <div className={styles.grid}>
+            {continueBook && (
+                <section className={styles.continuePanel}>
+                    <div>
+                        <span>Continue reading</span>
+                        <h3>{continueBook.title}</h3>
+                        <p>{Math.round(progressByBook[continueBook.id]?.percentage || 0)}% read · {formatLastRead(progressByBook[continueBook.id]?.lastRead)}</p>
+                    </div>
+                    <Link href={`/read/${continueBook.id}`}>Resume</Link>
+                </section>
+            )}
+            <div className={styles.toolbar}>
+                <label>
+                    <span>Sort</span>
+                    <select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)}>
+                        <option value="recent">Recent</option>
+                        <option value="title">Title</option>
+                        <option value="author">Author</option>
+                        <option value="progress">Progress</option>
+                    </select>
+                </label>
+                <label>
+                    <span>Tag</span>
+                    <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
+                        <option value="">All</option>
+                        {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+                    </select>
+                </label>
+                <div className={styles.segmented}>
+                    <button type="button" className={viewMode === "grid" ? styles.activeSegment : ""} onClick={() => setViewMode("grid")}>Grid</button>
+                    <button type="button" className={viewMode === "list" ? styles.activeSegment : ""} onClick={() => setViewMode("list")}>List</button>
+                </div>
+                {syncPending && <span className={styles.syncBadge}>Progress pending sync</span>}
+            </div>
+            <div className={`${styles.grid} ${viewMode === "list" ? styles.list : ""}`}>
                 {filteredBooks.map((book) => (
                     <article key={book.id} className={styles.card}>
                         <Link href={`/read/${book.id}`} className={styles.coverPlaceholder} aria-label={`Read ${book.title}`}>
@@ -122,14 +313,48 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
                                 <span className={styles.coverFallback}>{book.format === "pdf" ? "PDF" : "ePub"}</span>
                             )}
                             <span className={styles.formatBadge}>{book.format}</span>
+                            <span className={`${styles.offlineBadge} ${offlineByBook[book.id] ? styles.offlineReady : ""}`}>
+                                {offlineByBook[book.id] ? "Offline" : "Online"}
+                            </span>
                         </Link>
                         <div className={styles.info}>
                             <h4 className={styles.title} title={book.title}>{book.title}</h4>
                             <p className={styles.author}>{book.author}</p>
+                            <div className={styles.progressBlock}>
+                                <div>
+                                    <span>{Math.round(progressByBook[book.id]?.percentage || 0)}%</span>
+                                    <span>{formatLastRead(progressByBook[book.id]?.lastRead)}</span>
+                                </div>
+                                <div className={styles.progressTrack}>
+                                    <span style={{ width: `${Math.round(progressByBook[book.id]?.percentage || 0)}%` }} />
+                                </div>
+                            </div>
+                            <div className={styles.tagEditor}>
+                                <input
+                                    type="text"
+                                    value={tagDrafts[book.id] || ""}
+                                    onChange={(event) => setTagDrafts((current) => ({ ...current, [book.id]: event.target.value }))}
+                                    onBlur={() => saveTags(book)}
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter") {
+                                            event.currentTarget.blur();
+                                        }
+                                    }}
+                                    placeholder="Tags, comma separated"
+                                />
+                            </div>
                             <div className={styles.actions}>
                                 <Link href={`/read/${book.id}`} className={styles.readBtn}>
                                     Read
                                 </Link>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleOffline(book)}
+                                    className={styles.offlineBtn}
+                                    disabled={offlineBusyId === book.id}
+                                >
+                                    {offlineBusyId === book.id ? "Saving" : offlineByBook[book.id] ? "Remove offline" : "Save offline"}
+                                </button>
                                 {user && user.uid === book.uploadedBy && (
                                     <button
                                         type="button"

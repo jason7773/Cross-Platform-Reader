@@ -11,6 +11,7 @@ export interface Book {
     mimeType?: string;
     coverSize?: number;
     coverMimeType?: string;
+    tags?: string[];
     uploadedBy: string; // User ID
     createdAt: number; // Timestamp
 }
@@ -27,4 +28,26 @@ export interface ReadingProgress {
     location: string | number; // CFI for Epub, page number for PDF
     percentage?: number;
     lastRead: number;
+}
+
+export interface ReaderBookmark {
+    id: string;
+    bookId: string;
+    label: string;
+    note: string;
+    location: string | number;
+    percentage?: number;
+    createdAt: number;
+}
+
+export interface EpubReaderSettings {
+    fontSize: number;
+    lineHeight: number;
+    pageWidth: number;
+    background: string;
+}
+
+export interface PdfReaderSettings {
+    zoom: number;
+    pageMode: 'single' | 'continuous';
 }

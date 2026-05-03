@@ -23,11 +23,16 @@
     color: var(--danger);
 }
 
-.tocButton {
+.readerControls {
     position: absolute;
     top: 0.75rem;
     left: 0.75rem;
     z-index: 100;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.readerControlButton {
     min-height: 42px;
     padding: 0 0.9rem;
     color: var(--foreground);
@@ -96,6 +101,13 @@
     background: var(--secondary);
 }
 
+.tocItemButtonActive {
+    background: #ead8b7;
+    border-left: 3px solid #b59663;
+    color: inherit;
+    font-weight: 800;
+}
+
 .tocItemButton:disabled {
     cursor: default;
 }
@@ -105,6 +117,108 @@
     color: var(--muted);
 }
 
+.panelSection {
+    padding: 0.95rem 0;
+    border-top: 1px solid var(--card-border);
+}
+
+.panelSection h3 {
+    margin: 0 0 0.75rem;
+    font-size: 0.9rem;
+}
+
+.settingRow {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.7rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.settingRow input,
+.searchRow input,
+.bookmarkItem input {
+    min-height: 38px;
+    min-width: 0;
+    padding: 0 0.65rem;
+    color: var(--foreground);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+
+.searchRow {
+    display: flex;
+    gap: 0.55rem;
+    margin-bottom: 0.65rem;
+}
+
+.searchRow input {
+    flex: 1;
+}
+
+.searchRow button,
+.bookmarkItem button {
+    min-height: 38px;
+    padding: 0 0.7rem;
+    color: var(--foreground);
+    background: var(--surface-raised);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-weight: 800;
+}
+
+.searchRow button:not(:disabled):hover,
+.bookmarkItem button:not(:disabled):hover {
+    background: var(--secondary);
+}
+
+.searchRow button:disabled {
+    opacity: 0.55;
+}
+
+.resultList,
+.bookmarkList {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.resultList button,
+.bookmarkItem {
+    padding: 0.65rem;
+    text-align: left;
+    background: var(--surface-raised);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+}
+
+.resultList button {
+    display: grid;
+    gap: 0.3rem;
+    color: inherit;
+}
+
+.resultList span,
+.bookmarkList p,
+.resultList p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.4;
+}
+
+.bookmarkItem {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.bookmarkItem button {
+    justify-self: start;
+}
+
 .scrim {
     position: absolute;
     inset: 0;
@@ -112,16 +226,58 @@
     background: rgba(0, 0, 0, 0.48);
 }
 
+.progressHud {
+    margin: 0 0 0.9rem;
+    padding: 0.55rem 0.7rem;
+    color: var(--foreground);
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+.progressMeta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--muted);
+}
+
+.progressTrack {
+    height: 6px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--muted) 22%, transparent);
+    border-radius: 999px;
+}
+
+.progressFill {
+    display: block;
+    height: 100%;
+    background: var(--primary);
+    border-radius: inherit;
+    transition: width 180ms ease;
+}
+
 @media (max-width: 720px) {
-    .tocButton {
+    .readerControls {
         top: auto;
         right: 0.75rem;
         bottom: calc(0.75rem + env(safe-area-inset-bottom));
         left: 0.75rem;
+        justify-content: center;
         box-shadow: var(--shadow-md);
+    }
+
+    .readerControlButton {
+        width: 100%;
     }
 
     .tocPanel {
         width: min(360px, 90vw);
     }
+
 }

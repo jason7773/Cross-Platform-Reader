@@ -6,6 +6,7 @@ import { storage, db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
 import styles from "./UploadBook.module.css";
 import { Book } from "@/types";
+import { cacheUploadedBook } from "@/utils/bookCache";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Upload failed";
 const MAX_BOOK_SIZE_BYTES = 100 * 1024 * 1024;
@@ -127,6 +128,9 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 immutableFileMetadata(getBookContentType(format, file.type))
             );
             const url = await getDownloadURL(snapshot.ref);
+            cacheUploadedBook(url, file, getBookContentType(format, file.type)).catch((err) => {
+                console.warn("Book uploaded, but local offline cache failed:", err);
+            });
 
             // 2. Upload cover image (Manual or Auto-generated)
             let coverUrl = "";
