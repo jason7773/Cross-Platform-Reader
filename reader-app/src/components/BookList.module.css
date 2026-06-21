@@ -201,6 +201,23 @@
     white-space: nowrap;
 }
 
+.tagList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    min-height: 1.45rem;
+    margin: -0.25rem 0 0.7rem;
+}
+
+.tagList span {
+    padding: 0.18rem 0.4rem;
+    color: var(--primary-strong);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
 .progressBlock {
     display: grid;
     gap: 0.35rem;

@@ -57,6 +57,62 @@
   background: rgba(180, 35, 24, 0.08);
 }
 
+.privacyPanel {
+  max-width: 1180px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem auto 0;
+  padding: 1rem 2rem;
+  color: var(--foreground);
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.privacyPanel h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.privacyPanel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.privacyActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.65rem;
+}
+
+.privacyActions button {
+  min-height: 40px;
+  padding: 0 0.9rem;
+  color: var(--foreground);
+  background: var(--surface-raised);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  font-weight: 800;
+}
+
+.privacyActions button:hover {
+  background: var(--secondary);
+}
+
+.privacyActions button:disabled {
+  opacity: 0.62;
+}
+
+.dangerBtn {
+  color: var(--danger) !important;
+  border-color: color-mix(in srgb, var(--danger) 46%, var(--card-border)) !important;
+}
+
 .hero {
   max-width: 1180px;
   margin: 0 auto;
@@ -226,6 +282,21 @@
   .controls {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .privacyPanel {
+    align-items: stretch;
+    flex-direction: column;
+    margin: 0.75rem 1rem 0;
+    padding: 1rem;
+  }
+
+  .privacyActions {
+    justify-content: stretch;
+  }
+
+  .privacyActions button {
+    flex: 1;
   }
 
   .searchBar,

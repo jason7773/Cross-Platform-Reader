@@ -1,12 +1,12 @@
 "use client";
 import { useState } from "react";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes } from "firebase/storage";
 import { collection, addDoc } from "firebase/firestore";
 import { storage, db } from "@/firebase/config";
 import { useAuth } from "@/context/AuthContext";
-import styles from "./UploadBook.module.css";
 import { Book } from "@/types";
 import { cacheUploadedBook } from "@/utils/bookCache";
+import { extractBookMetadata } from "@/utils/bookMetadata";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Upload failed";
 const MAX_BOOK_SIZE_BYTES = 100 * 1024 * 1024;
@@ -20,7 +20,8 @@ const immutableFileMetadata = (contentType: string) => ({
 });
 
 const getBookContentType = (format: "pdf" | "epub", fallback: string) => {
-    if (fallback) return fallback;
+    if (format === "pdf" && fallback === "application/pdf") return fallback;
+    if (format === "epub" && fallback === "application/epub+zip") return fallback;
     return format === "pdf" ? "application/pdf" : "application/epub+zip";
 };
 
@@ -81,6 +82,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
     const [coverFile, setCoverFile] = useState<File | null>(null);
     const [title, setTitle] = useState("");
     const [author, setAuthor] = useState("");
+    const [tags, setTags] = useState("");
+    const [notes, setNotes] = useState("");
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
@@ -91,6 +94,10 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             setFile(selectedFile);
             const fileName = selectedFile.name.replace(/\.[^/.]+$/, "");
             setTitle(fileName);
+            extractBookMetadata(selectedFile).then((metadata) => {
+                if (metadata.title) setTitle(metadata.title);
+                if (metadata.author) setAuthor(metadata.author);
+            });
         }
     };
 
@@ -122,18 +129,17 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             // 1. Upload book file to Storage
             const storagePath = `books/${user.uid}/${Date.now()}_${file.name}`;
             const storageRef = ref(storage, storagePath);
-            const snapshot = await uploadBytes(
+            await uploadBytes(
                 storageRef,
                 file,
                 immutableFileMetadata(getBookContentType(format, file.type))
             );
-            const url = await getDownloadURL(snapshot.ref);
-            cacheUploadedBook(url, file, getBookContentType(format, file.type)).catch((err) => {
+            cacheUploadedBook(user.uid, storagePath, file, getBookContentType(format, file.type)).catch((err) => {
                 console.warn("Book uploaded, but local offline cache failed:", err);
             });
 
             // 2. Upload cover image (Manual or Auto-generated)
-            let coverUrl = "";
+            const coverUrl = "";
             let finalCoverBlob: Blob | null = coverFile;
 
             if (!finalCoverBlob) {
@@ -153,12 +159,11 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 const coverName = `cover_${Date.now()}.jpg`;
                 coverStoragePath = `covers/${user.uid}/${Date.now()}_${coverName}`;
                 const coverRef = ref(storage, coverStoragePath);
-                const coverSnapshot = await uploadBytes(
+                await uploadBytes(
                     coverRef,
                     finalCoverBlob,
                     immutableFileMetadata("image/jpeg")
                 );
-                coverUrl = await getDownloadURL(coverSnapshot.ref);
             }
 
             // 3. Save metadata to Firestore
@@ -166,7 +171,7 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 title,
                 author: author || "Unknown",
                 format,
-                url,
+                url: "",
                 coverUrl,
                 storagePath,
                 coverStoragePath,
@@ -178,6 +183,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 } : {}),
                 uploadedBy: user.uid,
                 createdAt: Date.now(),
+                tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+                notes: notes.trim(),
             };
 
             await addDoc(collection(db, "books"), newBook);
@@ -186,6 +193,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
             setCoverFile(null);
             setTitle("");
             setAuthor("");
+            setTags("");
+            setNotes("");
             setSuccess("Book uploaded.");
             if (onUploadSuccess) onUploadSuccess();
         } catch (err: unknown) {
@@ -197,34 +206,45 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
     };
 
     return (
-        <div className={styles.container}>
-            <h3>Upload New Book</h3>
-            {error && <p className={styles.error}>{error}</p>}
-            {success && <p className={styles.success}>{success}</p>}
-            <form onSubmit={handleUpload} className={styles.form}>
-                <div className={styles.dropZone}>
-                    <input
-                        type="file"
-                        accept=".pdf,.epub"
-                        onChange={handleFileChange}
-                        className={styles.fileInput}
-                        id="book-upload"
-                    />
-                    <label htmlFor="book-upload" className={styles.fileLabel}>
-                        {file ? file.name : "Click to select PDF or ePub"}
+        <div className="rounded-lg border border-[var(--card-border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
+            <div className="mb-2 flex items-center justify-between gap-3">
+                <h3 className="m-0 text-sm font-extrabold">Upload book</h3>
+                <span className="text-xs text-[var(--muted)]">PDF or ePub, up to 100 MB</span>
+            </div>
+            {error && <p className="mb-2 mt-0 rounded-lg bg-red-500/10 p-2 text-sm text-[var(--danger)]">{error}</p>}
+            {success && <p className="mb-2 mt-0 rounded-lg bg-[rgba(36,92,122,0.1)] p-2 text-sm text-[var(--primary-strong)]">{success}</p>}
+            <form onSubmit={handleUpload} className="grid gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                    <label
+                        htmlFor="book-upload"
+                        className="relative flex min-h-12 flex-1 cursor-pointer items-center gap-3 rounded-lg border border-dashed border-[var(--input-border)] bg-[var(--surface-raised)] px-3 text-sm hover:border-[var(--primary)] hover:bg-[var(--secondary)]"
+                    >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--card-border)] bg-[var(--surface)] text-base font-bold text-[var(--primary-strong)]">+</span>
+                        <span className="min-w-0">
+                            <span className="block truncate font-bold text-[var(--foreground)]">{file ? file.name : "Attach PDF or ePub"}</span>
+                            <span className="block text-xs text-[var(--muted)]">Choose the book file</span>
+                        </span>
+                        <input
+                            type="file"
+                            accept=".pdf,.epub"
+                            onChange={handleFileChange}
+                            className="absolute inset-0 cursor-pointer opacity-0"
+                            id="book-upload"
+                        />
                     </label>
-                </div>
 
-                <div className={styles.dropZone} style={{ marginTop: '10px' }}>
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleCoverChange}
-                        className={styles.fileInput}
-                        id="cover-upload"
-                    />
-                    <label htmlFor="cover-upload" className={styles.fileLabel}>
-                        {coverFile ? coverFile.name : "Click to select Cover Image (Optional)"}
+                    <label
+                        htmlFor="cover-upload"
+                        className="relative flex min-h-12 cursor-pointer items-center justify-center rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm font-bold text-[var(--muted)] hover:bg-[var(--secondary)] sm:w-48"
+                    >
+                        <span className="block max-w-full truncate">{coverFile ? coverFile.name : "Cover optional"}</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleCoverChange}
+                            className="absolute inset-0 cursor-pointer opacity-0"
+                            id="cover-upload"
+                        />
                     </label>
                 </div>
 
@@ -235,7 +255,7 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                             placeholder="Title"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className={styles.input}
+                            className="min-h-11 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[rgba(36,92,122,0.14)]"
                             required
                         />
                         <input
@@ -243,10 +263,27 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                             placeholder="Author"
                             value={author}
                             onChange={(e) => setAuthor(e.target.value)}
-                            className={styles.input}
+                            className="min-h-11 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[rgba(36,92,122,0.14)]"
                         />
-                        <button type="submit" disabled={uploading} className={styles.button}>
-                            {uploading ? "Uploading..." : "Upload Book"}
+                        <input
+                            type="text"
+                            placeholder="Tags, comma separated"
+                            value={tags}
+                            onChange={(e) => setTags(e.target.value)}
+                            className="min-h-11 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[rgba(36,92,122,0.14)]"
+                        />
+                        <textarea
+                            placeholder="Notes"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            className="min-h-20 resize-y rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-3 py-2 text-sm text-[var(--foreground)] outline-none focus:border-[var(--primary)] focus:ring-4 focus:ring-[rgba(36,92,122,0.14)]"
+                        />
+                        <button
+                            type="submit"
+                            disabled={uploading}
+                            className="min-h-11 rounded-lg bg-[var(--primary)] px-4 text-sm font-extrabold text-white disabled:opacity-[0.65] hover:bg-[var(--primary-strong)]"
+                        >
+                            {uploading ? "Uploading..." : "Upload book"}
                         </button>
                     </>
                 )}

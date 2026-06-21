@@ -8,11 +8,12 @@ import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getCachedBookBlob } from "@/utils/bookCache";
-import { addBookmark, deleteBookmark, getBookmarks, updateBookmarkNote } from "@/utils/bookmarks";
-import { getPdfSettings, savePdfSettings } from "@/utils/readerSettings";
+import { addBookmark, deleteBookmark, getBookmarks, loadBookmarks, updateBookmarkNote } from "@/utils/bookmarks";
+import { getPdfSettings, loadPdfSettings, savePdfSettings } from "@/utils/readerSettings";
+import { addHighlight, deleteHighlight, loadHighlights } from "@/utils/highlights";
 import { getLocalProgress, saveReadingProgress, syncPendingProgress } from "@/utils/readingProgress";
 import { db } from "@/firebase/config";
-import { PdfReaderSettings, ReaderBookmark } from "@/types";
+import { HighlightRect, PdfReaderSettings, ReaderBookmark, ReaderHighlight } from "@/types";
 import styles from "./PDFReader.module.css";
 
 // Set worker source
@@ -37,12 +38,13 @@ type PdfSearchResult = {
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Unknown PDF error";
 
 const clampPercent = (value: number) => Math.min(100, Math.max(0, Math.round(value)));
+const HIGHLIGHT_COLOR = "#ffe08a";
 
 const flattenOutline = (items: PdfOutlineItem[]): PdfOutlineItem[] => (
     items.flatMap((item) => [item, ...flattenOutline(item.items || [])])
 );
 
-export default function PDFReader({ url, bookId, mimeType }: { url: string; bookId: string; mimeType?: string }) {
+export default function PDFReader({ url, cacheKey, bookId, mimeType }: { url: string; cacheKey: string; bookId: string; mimeType?: string }) {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageNumber, setPageNumber] = useState<number>(1);
     const [pdfDocument, setPdfDocument] = useState<DocumentCallback | null>(null);
@@ -55,7 +57,18 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
     const [cacheStatus, setCacheStatus] = useState("Loading file");
     const [settings, setSettings] = useState<PdfReaderSettings>(() => getPdfSettings());
     const [bookmarks, setBookmarks] = useState<ReaderBookmark[]>([]);
+    const [highlights, setHighlights] = useState<ReaderHighlight[]>([]);
     const [bookmarkNote, setBookmarkNote] = useState("");
+    const [highlightNote, setHighlightNote] = useState("");
+    const [selectionDraft, setSelectionDraft] = useState<{
+        selectedText: string;
+        rects: HighlightRect[];
+        page: number;
+        x: number;
+        y: number;
+    } | null>(null);
+    const [selectionNote, setSelectionNote] = useState("");
+    const [expandedHighlightId, setExpandedHighlightId] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<PdfSearchResult[]>([]);
     const [searching, setSearching] = useState(false);
@@ -80,12 +93,22 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
     }, [outline, pageNumber]);
 
     useEffect(() => {
-        setBookmarks(getBookmarks(bookId));
-    }, [bookId]);
+        if (!user) return;
+        setBookmarks(getBookmarks(user.uid, bookId));
+        loadBookmarks(user, bookId).then(setBookmarks);
+        loadHighlights(user, bookId).then(setHighlights);
+    }, [bookId, user]);
 
     useEffect(() => {
-        savePdfSettings(settings);
-    }, [settings]);
+        if (!user) return;
+        loadPdfSettings(user).then(setSettings);
+    }, [user]);
+
+    useEffect(() => {
+        savePdfSettings(user, settings).catch((err) => {
+            console.warn("Could not save PDF settings:", err);
+        });
+    }, [settings, user]);
 
     useEffect(() => {
         syncPendingProgress(user);
@@ -105,7 +128,8 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
                 setPdfFileUrl(null);
                 setCacheStatus("Loading file");
 
-                const { blob, source } = await getCachedBookBlob(url);
+                if (!user) return;
+                const { blob, source } = await getCachedBookBlob(user.uid, cacheKey, url);
                 const pdfBlob = mimeType && blob.type !== mimeType
                     ? blob.slice(0, blob.size, mimeType)
                     : blob;
@@ -134,7 +158,7 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
                 URL.revokeObjectURL(objectUrl);
             }
         };
-    }, [url, mimeType]);
+    }, [cacheKey, mimeType, url, user]);
 
     const resolveOutlinePage = async (pdf: DocumentCallback, item: PdfOutlineItem) => {
         if (!item.dest) return undefined;
@@ -285,8 +309,8 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
         }
     };
 
-    const handleAddBookmark = () => {
-        const bookmark = addBookmark({
+    const handleAddBookmark = async () => {
+        const bookmark = await addBookmark(user, {
             bookId,
             label: `Page ${pageNumber}`,
             note: bookmarkNote.trim(),
@@ -298,12 +322,127 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
         setBookmarkNote("");
     };
 
-    const handleBookmarkNote = (bookmarkId: string, note: string) => {
-        setBookmarks(updateBookmarkNote(bookId, bookmarkId, note));
+    const handleBookmarkNote = async (bookmarkId: string, note: string) => {
+        setBookmarks(await updateBookmarkNote(user, bookId, bookmarkId, note));
     };
 
-    const handleDeleteBookmark = (bookmarkId: string) => {
-        setBookmarks(deleteBookmark(bookId, bookmarkId));
+    const handleDeleteBookmark = async (bookmarkId: string) => {
+        setBookmarks(await deleteBookmark(user, bookId, bookmarkId));
+    };
+
+    const handleAddHighlight = async () => {
+        const highlight = await addHighlight(user, {
+            bookId,
+            label: `Page ${pageNumber}`,
+            text: `Page ${pageNumber}`,
+            note: highlightNote.trim(),
+            location: pageNumber,
+            selectedText: `Page ${pageNumber}`,
+            percentage: progressPercent,
+            color: HIGHLIGHT_COLOR,
+        });
+
+        setHighlights((current) => [highlight, ...current]);
+        setHighlightNote("");
+    };
+
+    const handleDeleteHighlight = async (highlightId: string) => {
+        setHighlights(await deleteHighlight(user, bookId, highlightId));
+    };
+
+    const getSelectionRects = (range: Range) => {
+        const container = documentContainerRef.current;
+        if (!container) return [] as HighlightRect[];
+
+        const pageFrames = Array.from(container.querySelectorAll<HTMLElement>("[data-pdf-page]"));
+        const rects: HighlightRect[] = [];
+
+        Array.from(range.getClientRects()).forEach((rect) => {
+            if (rect.width < 2 || rect.height < 2) return;
+
+            const pageFrame = pageFrames.find((frame) => {
+                const pageRect = frame.getBoundingClientRect();
+                return rect.right > pageRect.left &&
+                    rect.left < pageRect.right &&
+                    rect.bottom > pageRect.top &&
+                    rect.top < pageRect.bottom;
+            });
+            if (!pageFrame) return;
+
+            const pageRect = pageFrame.getBoundingClientRect();
+            const page = Number(pageFrame.dataset.pdfPage);
+            const left = Math.max(rect.left, pageRect.left) - pageRect.left;
+            const top = Math.max(rect.top, pageRect.top) - pageRect.top;
+            const right = Math.min(rect.right, pageRect.right) - pageRect.left;
+            const bottom = Math.min(rect.bottom, pageRect.bottom) - pageRect.top;
+
+            rects.push({
+                page,
+                x: (left / pageRect.width) * 100,
+                y: (top / pageRect.height) * 100,
+                width: ((right - left) / pageRect.width) * 100,
+                height: ((bottom - top) / pageRect.height) * 100,
+            });
+        });
+
+        return rects;
+    };
+
+    const handlePdfSelectionMouseUp = () => {
+        const container = documentContainerRef.current;
+        const selection = window.getSelection();
+        const selectedText = selection?.toString().replace(/\s+/g, " ").trim();
+
+        if (!container || !selection || !selectedText || selection.rangeCount === 0) {
+            setSelectionDraft(null);
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!container.contains(range.commonAncestorContainer)) {
+            setSelectionDraft(null);
+            return;
+        }
+
+        const rects = getSelectionRects(range);
+        if (rects.length === 0) {
+            setSelectionDraft(null);
+            return;
+        }
+
+        const firstRect = range.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const composerMaxLeft = Math.max(12, container.clientWidth - 340);
+
+        setSelectionDraft({
+            selectedText,
+            rects,
+            page: rects[0].page,
+            x: Math.min(composerMaxLeft, Math.max(12, firstRect.left - containerRect.left + container.scrollLeft)),
+            y: Math.max(12, firstRect.bottom - containerRect.top + container.scrollTop),
+        });
+        setSelectionNote("");
+    };
+
+    const handleSaveSelectionHighlight = async () => {
+        if (!selectionDraft) return;
+
+        const highlight = await addHighlight(user, {
+            bookId,
+            label: `Page ${selectionDraft.page}`,
+            text: selectionDraft.selectedText,
+            note: selectionNote.trim(),
+            location: selectionDraft.page,
+            selectedText: selectionDraft.selectedText,
+            rects: selectionDraft.rects,
+            percentage: numPages ? clampPercent((selectionDraft.page / numPages) * 100) : progressPercent,
+            color: HIGHLIGHT_COLOR,
+        });
+
+        setHighlights((current) => [highlight, ...current]);
+        setSelectionDraft(null);
+        setSelectionNote("");
+        window.getSelection()?.removeAllRanges();
     };
 
     const handleSearch = async () => {
@@ -376,6 +515,62 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
     }, [settings.zoom]);
 
     const renderedPageWidth = Math.round(pageWidth * settings.zoom);
+
+    const renderPdfHighlights = (page: number) => (
+        <div className={styles.highlightOverlay}>
+            {highlights
+                .filter((highlight) => (highlight.rects || []).some((rect) => rect.page === page))
+                .map((highlight) => {
+                    const pageRects = (highlight.rects || []).filter((rect) => rect.page === page);
+                    return (
+                        <div key={highlight.id} className={styles.pdfHighlightGroup}>
+                            {pageRects.map((rect, index) => (
+                                <button
+                                    key={`${highlight.id}-${index}`}
+                                    type="button"
+                                    className={styles.pdfHighlightRect}
+                                    style={{
+                                        left: `${rect.x}%`,
+                                        top: `${rect.y}%`,
+                                        width: `${rect.width}%`,
+                                        height: `${rect.height}%`,
+                                        backgroundColor: highlight.color || HIGHLIGHT_COLOR,
+                                    }}
+                                    onClick={() => setExpandedHighlightId((current) => current === highlight.id ? "" : highlight.id)}
+                                    aria-label={highlight.note || highlight.text}
+                                />
+                            ))}
+                            {expandedHighlightId === highlight.id && pageRects[0] && (
+                                <div
+                                    className={styles.pdfComment}
+                                    style={{
+                                        left: `${Math.min(pageRects[0].x, 72)}%`,
+                                        top: `${Math.min(pageRects[0].y + pageRects[0].height + 1, 88)}%`,
+                                    }}
+                                >
+                                    <strong>{highlight.label}</strong>
+                                    {highlight.selectedText && <blockquote>{highlight.selectedText}</blockquote>}
+                                    {highlight.note && <p>{highlight.note}</p>}
+                                    <button type="button" onClick={() => handleDeleteHighlight(highlight.id)}>Delete</button>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+        </div>
+    );
+
+    const renderPdfPage = (page: number) => (
+        <div key={page} className={styles.pageFrame} data-pdf-page={page}>
+            <div
+                className={styles.pageCanvas}
+                style={{ filter: isDarkMode ? 'invert(0.9) hue-rotate(180deg)' : 'none' }}
+            >
+                <Page pageNumber={page} width={renderedPageWidth} />
+            </div>
+            {renderPdfHighlights(page)}
+        </div>
+    );
 
     return (
         <div className={styles.container} style={{ backgroundColor: isDarkMode ? '#1a1a1a' : '#f5f5f5', color: isDarkMode ? '#fff' : 'inherit' }}>
@@ -498,16 +693,60 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
                                 {bookmarks.length === 0 && <p>No bookmarks yet.</p>}
                             </div>
                         </section>
+                        <section className={styles.panelSection}>
+                            <h3>Highlights</h3>
+                            <div className={styles.searchRow}>
+                                <input
+                                    type="text"
+                                    value={highlightNote}
+                                    onChange={(event) => setHighlightNote(event.target.value)}
+                                    placeholder="Note for this page"
+                                />
+                                <button type="button" onClick={handleAddHighlight}>Add</button>
+                            </div>
+                            <div className={styles.bookmarkList}>
+                                {highlights.map((highlight) => (
+                                    <div key={highlight.id} className={styles.bookmarkItem}>
+                                        <button type="button" onClick={() => goToPage(Number(highlight.location))}>
+                                            {highlight.label}
+                                        </button>
+                                        <span>{highlight.note || highlight.text}</span>
+                                        <button type="button" onClick={() => handleDeleteHighlight(highlight.id)}>Delete</button>
+                                    </div>
+                                ))}
+                                {highlights.length === 0 && <p>No highlights yet.</p>}
+                            </div>
+                        </section>
                         {outline.length > 0 ? renderOutlineItems(outline) : <p className={styles.outlineEmpty}>No contents found.</p>}
                     </aside>
                 )}
-                <div className={styles.document} ref={documentContainerRef}>
+                <div className={styles.document} ref={documentContainerRef} onMouseUp={handlePdfSelectionMouseUp}>
                     {pdfError && (
                         <p className={styles.errorMessage}>
                             {pdfError}
                         </p>
                     )}
                     {pdfFileUrl ? (
+                        <>
+                        {selectionDraft && (
+                            <div
+                                className={styles.selectionComposer}
+                                style={{ left: selectionDraft.x, top: selectionDraft.y }}
+                                onMouseUp={(event) => event.stopPropagation()}
+                            >
+                                <strong>Highlight</strong>
+                                <span>{selectionDraft.selectedText}</span>
+                                <textarea
+                                    value={selectionNote}
+                                    onChange={(event) => setSelectionNote(event.target.value)}
+                                    placeholder="Comment on this passage"
+                                />
+                                <div>
+                                    <button type="button" onClick={() => setSelectionDraft(null)}>Cancel</button>
+                                    <button type="button" onClick={handleSaveSelectionHighlight}>Save</button>
+                                </div>
+                            </div>
+                        )}
                         <Document
                             file={pdfFileUrl}
                             onLoadSuccess={onDocumentLoadSuccess}
@@ -517,16 +756,13 @@ export default function PDFReader({ url, bookId, mimeType }: { url: string; book
                             }}
                             className={styles.pdfDoc}
                         >
-                            <div style={{ filter: isDarkMode ? 'invert(0.9) hue-rotate(180deg)' : 'none' }}>
-                                {settings.pageMode === "continuous" && numPages ? (
-                                    Array.from({ length: numPages }, (_, index) => (
-                                        <Page key={index + 1} pageNumber={index + 1} width={renderedPageWidth} />
-                                    ))
-                                ) : (
-                                    <Page pageNumber={pageNumber} width={renderedPageWidth} />
-                                )}
-                            </div>
+                            {settings.pageMode === "continuous" && numPages ? (
+                                Array.from({ length: numPages }, (_, index) => renderPdfPage(index + 1))
+                            ) : (
+                                renderPdfPage(pageNumber)
+                            )}
                         </Document>
+                        </>
                     ) : !pdfError && (
                         <p className={styles.loadingMessage}>Loading PDF file...</p>
                     )}

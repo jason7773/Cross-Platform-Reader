@@ -92,6 +92,7 @@
 }
 
 .document {
+    position: relative;
     flex: 1;
     overflow-y: auto;
     width: 100%;
@@ -105,7 +106,148 @@
 
 .pdfDoc {
     display: flex;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
+    gap: 1rem;
+}
+
+.pageFrame {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    line-height: 0;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+
+.pageCanvas {
+    position: relative;
+    z-index: 1;
+}
+
+.highlightOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+.pdfHighlightGroup {
+    display: contents;
+}
+
+.pdfHighlightRect {
+    position: absolute;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    opacity: 0.48;
+    cursor: pointer;
+    pointer-events: auto;
+    mix-blend-mode: multiply;
+}
+
+.pdfHighlightRect:hover {
+    opacity: 0.68;
+    outline: 1px solid rgba(91, 66, 25, 0.45);
+}
+
+.pdfComment {
+    position: absolute;
+    z-index: 3;
+    display: grid;
+    gap: 0.5rem;
+    width: min(280px, 74vw);
+    padding: 0.75rem;
+    color: var(--foreground);
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    line-height: 1.4;
+    pointer-events: auto;
+}
+
+.pdfComment strong {
+    font-size: 0.82rem;
+}
+
+.pdfComment blockquote,
+.pdfComment p {
+    margin: 0;
+    font-size: 0.82rem;
+}
+
+.pdfComment blockquote {
+    max-height: 5rem;
+    overflow: auto;
+    padding-left: 0.65rem;
+    color: var(--muted);
+    border-left: 3px solid #d8b15f;
+}
+
+.pdfComment button {
+    justify-self: start;
+    min-height: 32px;
+    padding: 0 0.65rem;
+    color: var(--foreground);
+    background: var(--surface-raised);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-weight: 800;
+}
+
+.selectionComposer {
+    position: absolute;
+    z-index: 30;
+    display: grid;
+    gap: 0.55rem;
+    width: min(320px, calc(100% - 2rem));
+    padding: 0.75rem;
+    color: var(--foreground);
+    background: var(--surface);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+}
+
+.selectionComposer strong {
+    font-size: 0.86rem;
+}
+
+.selectionComposer span {
+    max-height: 4.5rem;
+    overflow: auto;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.selectionComposer textarea {
+    min-height: 74px;
+    resize: vertical;
+    padding: 0.6rem;
+    color: var(--foreground);
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.selectionComposer div {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.selectionComposer button {
+    min-height: 34px;
+    padding: 0 0.75rem;
+    color: var(--foreground);
+    background: var(--surface-raised);
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    font-weight: 800;
 }
 
 .errorMessage {

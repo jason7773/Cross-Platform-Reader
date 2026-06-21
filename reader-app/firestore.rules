@@ -6,32 +6,137 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function ownsExistingBook() {
-      return signedIn() && resource.data.uploadedBy == request.auth.uid;
+    function ownsExisting(field) {
+      return signedIn() && resource.data[field] == request.auth.uid;
     }
 
-    function ownsIncomingBook() {
-      return signedIn() && request.resource.data.uploadedBy == request.auth.uid;
+    function ownsIncoming(field) {
+      return signedIn() && request.resource.data[field] == request.auth.uid;
     }
 
-    function ownsExistingProgress() {
-      return signedIn() && resource.data.userId == request.auth.uid;
+    function optionalString(data, field) {
+      return !(field in data) || data[field] is string;
     }
 
-    function ownsIncomingProgress() {
-      return signedIn() && request.resource.data.userId == request.auth.uid;
+    function optionalNumber(data, field) {
+      return !(field in data) || data[field] is number;
+    }
+
+    function validTags(data) {
+      return !("tags" in data) || (data.tags is list && data.tags.size() <= 20);
+    }
+
+    function validBookPath(path, prefix) {
+      return path is string && path.matches(prefix + request.auth.uid + '/[^/]+');
+    }
+
+    function validOptionalBookPath(data, field, prefix) {
+      return !(field in data) || data[field] == "" || validBookPath(data[field], prefix);
+    }
+
+    function validBook(data) {
+      return data.keys().hasOnly([
+          "title", "author", "format", "url", "coverUrl", "storagePath", "coverStoragePath",
+          "fileSize", "mimeType", "coverSize", "coverMimeType", "uploadedBy", "createdAt",
+          "tags", "notes"
+        ])
+        && data.title is string
+        && data.title.size() > 0
+        && data.title.size() <= 300
+        && data.author is string
+        && data.author.size() <= 300
+        && data.format in ["pdf", "epub"]
+        && data.uploadedBy == request.auth.uid
+        && data.createdAt is number
+        && optionalString(data, "url")
+        && optionalString(data, "coverUrl")
+        && validBookPath(data.storagePath, "books/")
+        && validOptionalBookPath(data, "coverStoragePath", "covers/")
+        && optionalNumber(data, "fileSize")
+        && optionalNumber(data, "coverSize")
+        && optionalString(data, "mimeType")
+        && optionalString(data, "coverMimeType")
+        && optionalString(data, "notes")
+        && validTags(data);
+    }
+
+    function validProgress(data) {
+      return data.keys().hasOnly(["userId", "bookId", "location", "percentage", "lastRead"])
+        && data.userId == request.auth.uid
+        && data.bookId is string
+        && (data.location is string || data.location is number)
+        && optionalNumber(data, "percentage")
+        && data.lastRead is number;
+    }
+
+    function validBookmark(data) {
+      return data.keys().hasOnly(["id", "userId", "bookId", "label", "note", "location", "percentage", "createdAt", "updatedAt"])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.bookId is string
+        && data.label is string
+        && data.note is string
+        && (data.location is string || data.location is number)
+        && optionalNumber(data, "percentage")
+        && data.createdAt is number
+        && optionalNumber(data, "updatedAt");
+    }
+
+    function validHighlight(data) {
+      return data.keys().hasOnly(["id", "userId", "bookId", "label", "text", "note", "location", "paragraphIndex", "selectedText", "occurrence", "rects", "percentage", "color", "createdAt", "updatedAt"])
+        && data.userId == request.auth.uid
+        && data.id is string
+        && data.bookId is string
+        && data.label is string
+        && data.text is string
+        && data.note is string
+        && (data.location is string || data.location is number)
+        && optionalNumber(data, "paragraphIndex")
+        && optionalString(data, "selectedText")
+        && optionalNumber(data, "occurrence")
+        && (!("rects" in data) || data.rects is list)
+        && optionalNumber(data, "percentage")
+        && data.color is string
+        && data.createdAt is number
+        && optionalNumber(data, "updatedAt");
+    }
+
+    function validReaderSettings(data) {
+      return data.keys().hasOnly(["userId", "kind", "settings", "updatedAt"])
+        && data.userId == request.auth.uid
+        && data.kind in ["pdf", "epub"]
+        && data.settings is map
+        && data.updatedAt is number;
     }
 
     match /books/{bookId} {
-      allow get, list, delete: if ownsExistingBook();
-      allow create: if ownsIncomingBook();
-      allow update: if ownsExistingBook() && ownsIncomingBook();
+      allow get, list, delete: if ownsExisting("uploadedBy");
+      allow create: if ownsIncoming("uploadedBy") && validBook(request.resource.data);
+      allow update: if ownsExisting("uploadedBy") && ownsIncoming("uploadedBy") && validBook(request.resource.data);
     }
 
     match /progress/{progressId} {
-      allow get, list, delete: if ownsExistingProgress();
-      allow create: if ownsIncomingProgress();
-      allow update: if ownsExistingProgress() && ownsIncomingProgress();
+      allow get, list, delete: if ownsExisting("userId");
+      allow create: if ownsIncoming("userId") && validProgress(request.resource.data);
+      allow update: if ownsExisting("userId") && ownsIncoming("userId") && validProgress(request.resource.data);
+    }
+
+    match /bookmarks/{bookmarkId} {
+      allow get, list, delete: if ownsExisting("userId");
+      allow create: if ownsIncoming("userId") && validBookmark(request.resource.data);
+      allow update: if ownsExisting("userId") && ownsIncoming("userId") && validBookmark(request.resource.data);
+    }
+
+    match /highlights/{highlightId} {
+      allow get, list, delete: if ownsExisting("userId");
+      allow create: if ownsIncoming("userId") && validHighlight(request.resource.data);
+      allow update: if ownsExisting("userId") && ownsIncoming("userId") && validHighlight(request.resource.data);
+    }
+
+    match /readerSettings/{settingsId} {
+      allow get, list, delete: if ownsExisting("userId");
+      allow create: if ownsIncoming("userId") && validReaderSettings(request.resource.data);
+      allow update: if ownsExisting("userId") && ownsIncoming("userId") && validReaderSettings(request.resource.data);
     }
 
     match /{document=**} {

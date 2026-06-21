@@ -1,5 +1,5 @@
 import * as pdfjs from "pdfjs-dist";
-import ePub from "epubjs";
+import JSZip from "jszip";
 
 // Initialize PDF.js worker
 if (typeof window !== "undefined") {
@@ -55,20 +55,55 @@ async function extractPdfCover(file: File): Promise<Blob | null> {
 async function extractEpubCover(file: File): Promise<Blob | null> {
     try {
         const arrayBuffer = await file.arrayBuffer();
-        const book = ePub(arrayBuffer);
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        const opfPath = await getOpfPath(zip);
+        const opfFile = opfPath ? zip.file(opfPath) : null;
+        if (!opfPath || !opfFile) return null;
 
-        // Wait for book to be ready
-        await book.ready;
+        const opfText = await opfFile.async("string");
+        const opf = new DOMParser().parseFromString(opfText, "application/xml");
+        const coverId = opf.querySelector("meta[name='cover']")?.getAttribute("content");
+        const coverItem = coverId
+            ? opf.querySelector(`manifest item[id="${CSS.escape(coverId)}"]`)
+            : opf.querySelector("manifest item[properties~='cover-image']");
+        const coverHref = coverItem?.getAttribute("href");
+        if (!coverHref) return null;
 
-        const coverUrl = await book.coverUrl();
-        if (!coverUrl) return null;
+        const coverFile = zip.file(resolveZipPath(opfPath, coverHref));
+        if (!coverFile) return null;
 
-        // Fetch the cover image and convert to Blob
-        const response = await fetch(coverUrl);
-        const blob = await response.blob();
-        return blob;
+        const blob = await coverFile.async("blob");
+        const mediaType = coverItem?.getAttribute("media-type") || blob.type || "image/jpeg";
+        return blob.slice(0, blob.size, mediaType);
     } catch (error) {
         console.error("Error extracting ePub cover:", error);
         return null; // Return null on failure
     }
 }
+
+const getOpfPath = async (zip: JSZip) => {
+    const containerFile = zip.file("META-INF/container.xml");
+    if (!containerFile) return null;
+
+    const containerText = await containerFile.async("string");
+    const container = new DOMParser().parseFromString(containerText, "application/xml");
+    return container.querySelector("rootfile")?.getAttribute("full-path") || null;
+};
+
+const resolveZipPath = (fromPath: string, href: string) => {
+    const baseParts = fromPath.split("/");
+    baseParts.pop();
+    const parts = [...baseParts, ...href.split("/")];
+    const resolved: string[] = [];
+
+    parts.forEach((part) => {
+        if (!part || part === ".") return;
+        if (part === "..") {
+            resolved.pop();
+            return;
+        }
+        resolved.push(part);
+    });
+
+    return resolved.join("/");
+};

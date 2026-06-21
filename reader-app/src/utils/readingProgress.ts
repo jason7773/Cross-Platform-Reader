@@ -3,27 +3,30 @@ import { User } from "firebase/auth";
 import { db } from "@/firebase/config";
 import { ReadingProgress } from "@/types";
 
+import { removeLocalStorageByPrefixes } from "@/utils/userScopedStorage";
+
 const LOCAL_PROGRESS_PREFIX = "reader-progress:";
-const PENDING_PROGRESS_KEY = "reader-pending-progress";
+const PENDING_PROGRESS_PREFIX = "reader-pending-progress:";
 
 const canUseLocalStorage = () => typeof window !== "undefined" && "localStorage" in window;
 
 const getLocalProgressKey = (userId: string, bookId: string) => `${LOCAL_PROGRESS_PREFIX}${userId}:${bookId}`;
+const getPendingProgressKey = (userId: string) => `${PENDING_PROGRESS_PREFIX}${userId}`;
 
-const readPendingProgress = () => {
+const readPendingProgress = (userId: string) => {
     if (!canUseLocalStorage()) return [] as ReadingProgress[];
 
     try {
-        const raw = localStorage.getItem(PENDING_PROGRESS_KEY);
+        const raw = localStorage.getItem(getPendingProgressKey(userId));
         return raw ? JSON.parse(raw) as ReadingProgress[] : [];
     } catch {
         return [];
     }
 };
 
-const writePendingProgress = (items: ReadingProgress[]) => {
+const writePendingProgress = (userId: string, items: ReadingProgress[]) => {
     if (!canUseLocalStorage()) return;
-    localStorage.setItem(PENDING_PROGRESS_KEY, JSON.stringify(items));
+    localStorage.setItem(getPendingProgressKey(userId), JSON.stringify(items));
 };
 
 export const cacheLocalProgress = (progress: ReadingProgress) => {
@@ -64,13 +67,13 @@ export const getAllLocalProgress = (userId: string) => {
 };
 
 const queuePendingProgress = (progress: ReadingProgress) => {
-    const items = readPendingProgress();
+    const items = readPendingProgress(progress.userId);
     const nextItems = [
         ...items.filter((item) => !(item.userId === progress.userId && item.bookId === progress.bookId)),
         progress,
     ];
 
-    writePendingProgress(nextItems);
+    writePendingProgress(progress.userId, nextItems);
 };
 
 export const saveReadingProgress = async (user: User | null | undefined, progress: Omit<ReadingProgress, "userId">) => {
@@ -94,9 +97,7 @@ export const saveReadingProgress = async (user: User | null | undefined, progres
 export const syncPendingProgress = async (user: User | null | undefined) => {
     if (!user) return;
 
-    const items = readPendingProgress();
-    const ownItems = items.filter((item) => item.userId === user.uid);
-    const otherItems = items.filter((item) => item.userId !== user.uid);
+    const ownItems = readPendingProgress(user.uid).filter((item) => item.userId === user.uid);
     const failedItems: ReadingProgress[] = [];
 
     for (const item of ownItems) {
@@ -108,7 +109,14 @@ export const syncPendingProgress = async (user: User | null | undefined) => {
         }
     }
 
-    writePendingProgress([...otherItems, ...failedItems]);
+    writePendingProgress(user.uid, failedItems);
 };
 
-export const hasPendingProgress = (userId: string) => readPendingProgress().some((item) => item.userId === userId);
+export const hasPendingProgress = (userId: string) => readPendingProgress(userId).some((item) => item.userId === userId);
+
+export const clearLocalProgress = (userId: string) => {
+    removeLocalStorageByPrefixes([
+        `${LOCAL_PROGRESS_PREFIX}${userId}:`,
+        `${PENDING_PROGRESS_PREFIX}${userId}`,
+    ]);
+};
