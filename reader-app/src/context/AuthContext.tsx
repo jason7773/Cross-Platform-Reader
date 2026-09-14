@@ -50,7 +50,8 @@ export const AuthContextProvider = ({
             };
             void loadSession();
             const timer = window.setInterval(loadSession, 30_000);
-            return () => { cancelled = true; window.clearInterval(timer); };
+            window.addEventListener("reader-session-changed", loadSession);
+            return () => { cancelled = true; window.clearInterval(timer); window.removeEventListener("reader-session-changed", loadSession); };
         }
 
         if (firebaseConfigError) {

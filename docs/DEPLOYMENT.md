@@ -9,6 +9,7 @@ books and reading data.
 Use this mode on one VPS or NAS. It does not require a Firebase account.
 
 ```bash
+cd reader-app
 cp .env.example .env
 docker compose up -d --build
 docker compose exec -T reader npm run local:user -- create you@example.com --password-stdin
@@ -32,8 +33,11 @@ From `reader-app/`, install the Firebase CLI and deploy rules, indexes, and
 hosting/App Hosting using your own project. Replace the project placeholder in
 `.firebaserc` locally (it is intentionally not committed with an owner's
 project ID). Configure the Storage CORS origin to your own HTTPS domain and
-localhost during development. Add the first approved member with the admin
-tool before attempting to sign in.
+localhost during development. Install `firebase-admin` only on the
+administrator machine, set `GOOGLE_APPLICATION_CREDENTIALS` to a private
+service-account key, and run `node scripts/firebase-members.mjs approve FIREBASE_UID`
+to add the first member. The key must never enter the browser bundle, Docker
+image, or repository.
 
 Firebase web configuration values identify an app and are not service-account
 secrets. Service-account keys belong only on the operator's admin machine and

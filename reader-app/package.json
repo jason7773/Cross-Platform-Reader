@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "local:user": "node scripts/local-users.mjs",
+    "firebase:member": "node scripts/firebase-members.mjs",
     "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run tests/firebase.rules.test.ts\"",
     "test:rules:run": "vitest run tests/firebase.rules.test.ts"
   },

@@ -9,6 +9,7 @@ import BookList from "@/components/BookList";
 import ThemeToggle from "@/components/ThemeToggle";
 import { deleteUserData, exportUserData } from "@/utils/accountData";
 import { clearUserLocalData, getUserOfflineBookCount, removeUserOfflineBooks } from "@/utils/localUserData";
+import LocalLibrary from "@/components/LocalLibrary";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -73,6 +74,8 @@ export default function Home() {
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-[var(--background)] text-base text-[var(--muted)]">Loading...</div>;
 
   if (!user) return null;
+
+  if (!firebaseEnabled) return <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"><header className="flex items-center justify-between border-b p-4"><strong>Reader · Local library</strong><button onClick={handleLogout} className="rounded border px-3 py-2">Logout</button></header><LocalLibrary /></main>;
 
   return (
     <main className="min-h-screen bg-[var(--background)] pb-[env(safe-area-inset-bottom)] text-[var(--foreground)]">

@@ -38,7 +38,7 @@ const library: LibraryRepository = {
     async list() { return (await request<{ books: Book[] }>("/books")).books; },
     async get(_, bookId) { try { return (await request<{ book: Book }>(`/books/${encodeURIComponent(bookId)}`)).book; } catch { return null; } },
     subscribe(userId, listener, onError) { let stopped = false; const poll = async () => { try { const books = await library.list(userId); if (!stopped) listener(books); } catch (error) { onError?.(error instanceof Error ? error : new Error("Library request failed.")); } }; void poll(); const timer = window.setInterval(poll, 30_000); return () => { stopped = true; window.clearInterval(timer); }; },
-    async create(_, book) { return (await request<{ book: Book }>("/books", { method: "POST", body: JSON.stringify(book) })).book; },
+    async create() { throw new Error("Local book creation requires a multipart upload; use FileStore.uploadBook."); },
     async remove(_, bookId) { await request(`/books/${encodeURIComponent(bookId)}`, { method: "DELETE" }); },
 };
 
@@ -49,10 +49,10 @@ const readerData: ReaderDataRepository = {
     async saveProgress(progress) { await request(`/books/${encodeURIComponent(progress.bookId)}/progress`, { method: "PUT", body: JSON.stringify(progress) }); },
     async listBookmarks(_, bookId) { return (await request<{ bookmarks: ReaderBookmark[] }>(`/books/${encodeURIComponent(bookId)}/bookmarks`)).bookmarks; },
     async saveBookmark(bookmark) { await request(`/books/${encodeURIComponent(bookmark.bookId)}/bookmarks`, { method: "PUT", body: JSON.stringify(bookmark) }); },
-    async removeBookmark(_, id) { await request(`/books/unknown/bookmarks/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+    async removeBookmark() { throw new Error("Local bookmark deletion requires the book id and is handled by the reader UI."); },
     async listHighlights(_, bookId) { return (await request<{ highlights: ReaderHighlight[] }>(`/books/${encodeURIComponent(bookId)}/highlights`)).highlights; },
     async saveHighlight(highlight) { await request(`/books/${encodeURIComponent(highlight.bookId)}/highlights`, { method: "PUT", body: JSON.stringify(highlight) }); },
-    async removeHighlight(_, id) { await request(`/books/unknown/highlights/${encodeURIComponent(id)}`, { method: "DELETE" }); },
+    async removeHighlight() { throw new Error("Local highlight deletion requires the book id and is handled by the reader UI."); },
     async getEpubSettings(userId) { return (await request<{ settings?: EpubReaderSettings }>(`/settings?kind=epub`)).settings || null; },
     async getPdfSettings(userId) { return (await request<{ settings?: PdfReaderSettings }>(`/settings?kind=pdf`)).settings || null; },
     async saveEpubSettings(_, settings) { await request("/settings", { method: "PUT", body: JSON.stringify({ kind: "epub", settings }) }); },
@@ -60,7 +60,7 @@ const readerData: ReaderDataRepository = {
 };
 
 const files: FileStore = {
-    async uploadBook(userId, file, contentType, fileName): Promise<StoredFile> { const form = new FormData(); form.set("file", new File([file], fileName, { type: contentType })); const payload = await request<{ book: Book }>("/books", { method: "POST", body: form }); return { path: payload.book.storagePath || payload.book.url || "", contentType, size: file.size }; },
+    async uploadBook(userId, file, contentType, fileName): Promise<StoredFile> { const form = new FormData(); form.set("file", new File([file], fileName, { type: contentType })); form.set("title", fileName.replace(/\.[^.]+$/, "")); form.set("author", ""); const payload = await request<{ book: Book }>("/books", { method: "POST", body: form }); return { path: payload.book.storagePath || payload.book.url || "", contentType, size: file.size }; },
     async uploadCover() { throw new Error("Upload covers together with a book in local mode."); },
     async read(path) { const response = await fetch(path.startsWith("/api/") ? path : `/api/v1/books/${encodeURIComponent(path)}/file`, { credentials: "same-origin", cache: "no-store" }); if (!response.ok) throw new Error("Could not read file."); return response.blob(); },
     async remove() { return undefined; },

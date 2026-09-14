@@ -27,6 +27,7 @@ export default function LoginPage() {
                 });
                 const payload = await response.json() as { error?: string };
                 if (!response.ok) throw new Error(payload.error || "Authentication failed");
+                window.dispatchEvent(new Event("reader-session-changed"));
                 router.push("/");
                 return;
             }
