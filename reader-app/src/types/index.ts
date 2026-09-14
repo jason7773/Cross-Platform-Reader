@@ -23,6 +23,19 @@ export interface UserProfile {
     role: 'admin' | 'user';
 }
 
+/**
+ * The authenticated identity exposed to the reader UI.
+ *
+ * Keep this deliberately independent from a provider SDK. Backends may carry
+ * richer provider-specific data internally, but application components should
+ * only rely on these stable fields.
+ */
+export interface SessionUser {
+    uid: string;
+    email: string | null;
+    displayName?: string | null;
+}
+
 export interface ReadingProgress {
     userId: string;
     bookId: string;

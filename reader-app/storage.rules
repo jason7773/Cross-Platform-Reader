@@ -6,8 +6,14 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function activeMember() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/members/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/members/$(request.auth.uid)).data.active == true;
+    }
+
     function ownsPath(userId) {
-      return signedIn() && request.auth.uid == userId;
+      return activeMember() && request.auth.uid == userId;
     }
 
     function validBookUpload() {

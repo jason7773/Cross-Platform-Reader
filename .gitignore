@@ -36,3 +36,15 @@ serviceAccount*.json
 .env*
 .vercel
 *.tsbuildinfo
+
+# local deployment state
+reader-app/data/
+reader-app/uploads/
+reader-app/.env.local
+reader-app/service-account*.json
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.bak
+*.backup

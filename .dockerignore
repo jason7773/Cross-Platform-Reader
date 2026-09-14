@@ -1,0 +1,13 @@
+.git
+.github
+node_modules
+reader-app/node_modules
+reader-app/.next
+reader-app/.env*
+reader-app/data
+reader-app/uploads
+*.sqlite
+*.db
+*.log
+*.pem
+*service-account*.json

@@ -1,0 +1,42 @@
+services:
+  reader:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_READER_BACKEND: local
+    env_file: .env
+    environment:
+      READER_DATA_DIR: /data
+    volumes:
+      - reader-data:/data
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.10-alpine
+    profiles: ["proxy"]
+    depends_on:
+      reader:
+        condition: service_healthy
+    environment:
+      READER_DOMAIN: ${READER_DOMAIN:-localhost}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+
+volumes:
+  reader-data:
+  caddy-data:
+  caddy-config:

@@ -16,7 +16,9 @@ const COVER_QUALITY = 0.78;
 
 const immutableFileMetadata = (contentType: string) => ({
     contentType,
-    cacheControl: "public, max-age=31536000, immutable",
+    // Objects remain private to their Storage owner. Browser offline caching is
+    // handled separately and must not turn an authenticated object public.
+    cacheControl: "private, no-store",
 });
 
 const getBookContentType = (format: "pdf" | "epub", fallback: string) => {

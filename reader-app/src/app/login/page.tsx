@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "@/firebase/config";
+import { auth, googleProvider, firebaseEnabled } from "@/firebase/config";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Authentication failed";
 
@@ -12,11 +13,23 @@ export default function LoginPage() {
     const [isSignUp, setIsSignUp] = useState(false);
     const [error, setError] = useState("");
     const router = useRouter();
+    const { accessError } = useAuth();
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
         setError("");
         try {
+            if (!firebaseEnabled) {
+                const response = await fetch("/api/v1/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password }),
+                });
+                const payload = await response.json() as { error?: string };
+                if (!response.ok) throw new Error(payload.error || "Authentication failed");
+                router.push("/");
+                return;
+            }
             if (isSignUp) {
                 await createUserWithEmailAndPassword(auth, email, password);
             } else {
@@ -30,6 +43,10 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         try {
+            if (!firebaseEnabled) {
+                setError("Google sign-in is configured only for Firebase deployments.");
+                return;
+            }
             await signInWithPopup(auth, googleProvider);
             router.push("/");
         } catch (err: unknown) {
@@ -44,7 +61,7 @@ export default function LoginPage() {
                 className="flex w-full max-w-[420px] flex-col gap-3 rounded-lg border border-[var(--card-border)] bg-[var(--surface)] p-6 shadow-[var(--shadow-md)]"
             >
                 <h1 className="m-0 text-center text-2xl font-extrabold">{isSignUp ? "Sign Up" : "Login"}</h1>
-                {error && <p className="m-0 rounded-lg bg-red-500/10 p-3 text-center text-sm text-[var(--danger)]">{error}</p>}
+                {(error || accessError) && <p className="m-0 rounded-lg bg-red-500/10 p-3 text-center text-sm text-[var(--danger)]">{error || accessError}</p>}
 
                 <button
                     type="button"

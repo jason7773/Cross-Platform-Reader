@@ -1,0 +1,3 @@
+{$READER_DOMAIN:localhost} {
+    reverse_proxy reader:3000
+}

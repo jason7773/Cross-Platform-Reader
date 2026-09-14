@@ -19,6 +19,15 @@ import {
 
 let testEnv: RulesTestEnvironment;
 
+const provisionMember = async (uid: string, active = true) => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), "members", uid), {
+            active,
+            updatedAt: Date.now(),
+        });
+    });
+};
+
 const validBook = (uid: string) => ({
     title: "Book",
     author: "Author",
@@ -62,6 +71,7 @@ afterAll(async () => {
 
 describe("Firestore rules", () => {
     it("allows owners to create and read valid book metadata", async () => {
+        await provisionMember("alice");
         const db = testEnv.authenticatedContext("alice").firestore();
         const bookRef = doc(db, "books/book1");
 
@@ -71,6 +81,8 @@ describe("Firestore rules", () => {
 
     it("blocks non-owners from reading book metadata", async () => {
         await testEnv.withSecurityRulesDisabled(async (context) => {
+            await setDoc(doc(context.firestore(), "members", "alice"), { active: true, updatedAt: Date.now() });
+            await setDoc(doc(context.firestore(), "members", "bob"), { active: true, updatedAt: Date.now() });
             await setDoc(doc(context.firestore(), "books/book1"), validBook("alice"));
         });
 
@@ -79,6 +91,7 @@ describe("Firestore rules", () => {
     });
 
     it("rejects book metadata with another user's storage path", async () => {
+        await provisionMember("alice");
         const db = testEnv.authenticatedContext("alice").firestore();
         await assertFails(setDoc(doc(db, "books/book1"), {
             ...validBook("alice"),
@@ -87,6 +100,7 @@ describe("Firestore rules", () => {
     });
 
     it("allows owner-scoped progress, bookmarks, highlights, and reader settings", async () => {
+        await provisionMember("alice");
         const db = testEnv.authenticatedContext("alice").firestore();
 
         await assertSucceeds(setDoc(doc(db, "progress/alice_book1"), {
@@ -133,6 +147,7 @@ describe("Firestore rules", () => {
     });
 
     it("blocks cross-owner writes", async () => {
+        await provisionMember("alice");
         const db = testEnv.authenticatedContext("alice").firestore();
         await assertFails(setDoc(doc(db, "progress/bob_book1"), {
             userId: "bob",
@@ -141,10 +156,20 @@ describe("Firestore rules", () => {
             lastRead: Date.now(),
         }));
     });
+
+    it("blocks inactive accounts while allowing them to inspect only their own membership", async () => {
+        await provisionMember("alice", false);
+        const db = testEnv.authenticatedContext("alice").firestore();
+
+        await assertSucceeds(getDoc(doc(db, "members/alice")));
+        await assertFails(getDoc(doc(db, "members/bob")));
+        await assertFails(setDoc(doc(db, "books/book1"), validBook("alice")));
+    });
 });
 
 describe("Storage rules", () => {
     it("allows owner PDF uploads and reads", async () => {
+        await provisionMember("alice");
         const storage = testEnv.authenticatedContext("alice").storage();
         const fileRef = ref(storage, "books/alice/book.pdf");
 
@@ -153,20 +178,31 @@ describe("Storage rules", () => {
     });
 
     it("blocks cross-owner uploads", async () => {
+        await provisionMember("alice");
         const storage = testEnv.authenticatedContext("alice").storage();
         await assertFails(uploadBytes(ref(storage, "books/bob/book.pdf"), new Blob(["pdf"]), { contentType: "application/pdf" }));
     });
 
     it("rejects octet-stream book uploads", async () => {
+        await provisionMember("alice");
         const storage = testEnv.authenticatedContext("alice").storage();
         await assertFails(uploadBytes(ref(storage, "books/alice/book.bin"), new Blob(["data"]), { contentType: "application/octet-stream" }));
     });
 
     it("blocks non-owner reads", async () => {
+        await provisionMember("alice");
+        await provisionMember("bob");
         const aliceStorage = testEnv.authenticatedContext("alice").storage();
         const bobStorage = testEnv.authenticatedContext("bob").storage();
         await uploadBytes(ref(aliceStorage, "books/alice/book.pdf"), new Blob(["pdf"]), { contentType: "application/pdf" });
 
         await assertFails(getBytes(ref(bobStorage, "books/alice/book.pdf")));
+    });
+
+    it("blocks inactive members from reading or writing their own path", async () => {
+        await provisionMember("alice", false);
+        const storage = testEnv.authenticatedContext("alice").storage();
+
+        await assertFails(uploadBytes(ref(storage, "books/alice/book.pdf"), new Blob(["pdf"]), { contentType: "application/pdf" }));
     });
 });

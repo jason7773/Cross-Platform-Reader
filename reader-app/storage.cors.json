@@ -1,7 +1,7 @@
 [
   {
     "origin": [
-      "https://cross-platform-reader.web.app",
+      "https://your-library.example.com",
       "http://localhost:3000"
     ],
     "method": ["GET", "HEAD", "OPTIONS"],

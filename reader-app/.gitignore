@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local deployment state and user data
+/data/
+/uploads/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.bak
+*.backup
+service-account*.json

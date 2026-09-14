@@ -6,12 +6,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Membership is provisioned only by the administrator CLI (Firebase Admin
+    // SDK bypasses rules). A client can inspect only its own membership record.
+    function activeMember() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && get(/databases/$(database)/documents/members/$(request.auth.uid)).data.active == true;
+    }
+
     function ownsExisting(field) {
-      return signedIn() && resource.data[field] == request.auth.uid;
+      return activeMember() && resource.data[field] == request.auth.uid;
     }
 
     function ownsIncoming(field) {
-      return signedIn() && request.resource.data[field] == request.auth.uid;
+      return activeMember() && request.resource.data[field] == request.auth.uid;
     }
 
     function optionalString(data, field) {
@@ -137,6 +145,13 @@ service cloud.firestore {
       allow get, list, delete: if ownsExisting("userId");
       allow create: if ownsIncoming("userId") && validReaderSettings(request.resource.data);
       allow update: if ownsExisting("userId") && ownsIncoming("userId") && validReaderSettings(request.resource.data);
+    }
+
+    match /members/{userId} {
+      // This permits the client to verify its own status before using the app,
+      // but never exposes the member directory or allows client-side changes.
+      allow get: if signedIn() && request.auth.uid == userId;
+      allow list, create, update, delete: if false;
     }
 
     match /{document=**} {

@@ -1,63 +1,41 @@
-# Cross-Platform Reader
+# Reader app
 
-Next.js reader app for PDF and ePub files, backed by Firebase Auth, Firestore, Firebase Storage, and Firebase Hosting.
+Next.js reader for PDF and ePub files. Firebase is the managed backend; the
+local Docker backend uses SQLite and private files under `READER_DATA_DIR`.
 
-## Features
-
-- PDF and ePub reading with saved percentage progress.
-- Contents panel with current chapter/section marking.
-- Reader settings for PDF zoom/page mode and ePub text size, line spacing, and reading width.
-- In-book search for PDF pages and ePub chapters.
-- Local bookmarks with editable notes.
-- Offline file cache with manual save/remove controls.
-- Local progress fallback with automatic Firestore sync when network returns.
-- Library progress bars, continue-reading shortcut, sorting, and grid/list views.
-
-## Local Development
+## Firebase development
 
 ```bash
-npm install
+cp env-example .env.local
+npm ci
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Fill in the Firebase values with your own project. The committed `.firebaserc`
+is intentionally empty. Deploy rules and indexes only after creating your own
+project and approving the first member with the admin script.
 
-## Environment
+## Docker local deployment
 
-Create `.env.local` from `env-example`:
-
-```env
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_messaging_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-```
-
-## Storage Delivery
-
-Book files and covers are stored in Firebase Storage. The reader loads PDF and ePub files directly from Firebase Storage download URLs so large book traffic does not pass through Firebase Hosting's framework backend.
-
-Apply the Storage CORS policy before relying on deployed direct reads:
+From this directory, copy `.env.example` to `.env`, set a random session secret
+if using a custom environment, and run:
 
 ```bash
-gcloud storage buckets update gs://cross-platform-reader.firebasestorage.app --cors-file=storage.cors.json
+docker compose -f compose.yaml up -d --build
+npm run local:user -- create you@example.com --password-stdin
 ```
 
-If you use a different bucket, replace the bucket name with the value of `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`.
-
-## Firebase Rules
-
-Firestore and Storage rules live in `firestore.rules` and `storage.rules`. They restrict book metadata, progress records, and stored files to the signed-in owner. Deploy them with the app:
-
-```bash
-firebase deploy --only firestore:rules,storage,hosting
-```
+The local API is under `/api/v1`. It enforces sessions, CSRF checks, member
+status, per-user ownership, upload limits, and private file responses. Use one
+application instance per SQLite volume.
 
 ## Validation
 
 ```bash
 npm run lint
+npm run typecheck
 npm run build
 ```
+
+See the repository deployment and security documents for HTTPS, backups,
+Firebase CORS, and credential handling.

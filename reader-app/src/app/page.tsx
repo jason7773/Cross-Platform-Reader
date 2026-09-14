@@ -3,7 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
-import { auth } from "@/firebase/config";
+import { auth, firebaseEnabled } from "@/firebase/config";
 import UploadBook from "@/components/UploadBook";
 import BookList from "@/components/BookList";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -34,7 +34,8 @@ export default function Home() {
     if (user) {
       await clearUserLocalData(user.uid);
     }
-    await signOut(auth);
+    if (firebaseEnabled) await signOut(auth);
+    else await fetch("/api/v1/auth/logout", { method: "POST", headers: { "x-csrf-token": "" } });
   };
 
   const handleRemoveOfflineBooks = async () => {
@@ -66,7 +67,7 @@ export default function Home() {
     if (!confirmed) return;
     setPrivacyBusy("delete");
     await deleteUserData(user);
-    await signOut(auth);
+    if (firebaseEnabled) await signOut(auth);
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-[var(--background)] text-base text-[var(--muted)]">Loading...</div>;
