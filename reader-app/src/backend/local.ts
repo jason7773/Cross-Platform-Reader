@@ -104,8 +104,8 @@ const readerData: ReaderDataRepository = {
     async listHighlights(_, bookId) { return (await request<{ highlights: ReaderHighlight[] }>(`/books/${encodeURIComponent(bookId)}/highlights`)).highlights; },
     async saveHighlight(highlight) { await request(`/books/${encodeURIComponent(highlight.bookId)}/highlights`, { method: "PUT", body: JSON.stringify(highlight) }); },
     async removeHighlight(_, bookId, highlightId) { await request(`/books/${encodeURIComponent(bookId)}/highlights?id=${encodeURIComponent(highlightId)}`, { method: "DELETE" }); },
-    async getEpubSettings(userId) { return (await request<{ settings?: EpubReaderSettings }>(`/settings?kind=epub`)).settings || null; },
-    async getPdfSettings(userId) { return (await request<{ settings?: PdfReaderSettings }>(`/settings?kind=pdf`)).settings || null; },
+    async getEpubSettings() { return (await request<{ settings?: EpubReaderSettings }>(`/settings?kind=epub`)).settings || null; },
+    async getPdfSettings() { return (await request<{ settings?: PdfReaderSettings }>(`/settings?kind=pdf`)).settings || null; },
     async saveEpubSettings(_, settings) { await request("/settings", { method: "PUT", body: JSON.stringify({ kind: "epub", settings }) }); },
     async savePdfSettings(_, settings) { await request("/settings", { method: "PUT", body: JSON.stringify({ kind: "pdf", settings }) }); },
 };

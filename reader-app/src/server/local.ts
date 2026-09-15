@@ -37,7 +37,6 @@ type SessionRow = LocalUser & { csrf_token: string };
 
 declare global {
     // Keep one connection per Next.js server process during development reloads.
-    // eslint-disable-next-line no-var
     var __readerLocalDatabase: Database.Database | undefined;
 }
 

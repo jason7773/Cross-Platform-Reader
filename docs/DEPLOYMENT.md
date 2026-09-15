@@ -52,6 +52,10 @@ For Docker, stop the application before a backup or restore. The backup command
 uses SQLite's backup API and copies the private `files/` tree with a manifest.
 Store the destination outside the Docker data volume.
 
+On Linux, first create the backup directory and give the container's `node`
+user (UID 1000) access: `sudo install -d -m 700 -o 1000 -g 1000 backups`.
+An automatically created, root-owned bind mount is not writable by the reader.
+
 ```bash
 docker compose stop reader
 docker compose run --rm --no-deps -v "$PWD/backups:/backup" reader \

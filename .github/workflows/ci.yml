@@ -20,10 +20,11 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      - run: node --test tests/local-backup.test.mjs
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=high
       - name: Firebase rules emulator tests
-        run: npx --yes firebase-tools@13.35.1 emulators:exec --only firestore,storage "npm run test:rules:run"
+        run: npx --yes firebase-tools@13.35.1 emulators:exec --project reader-rules-test --only firestore,storage "npm run test:rules:run"
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -67,11 +68,16 @@ jobs:
           exit 1
       - name: Create smoke-test member
         run: printf '%s' 'a-strong-ci-test-password' | docker compose exec -T reader npm run local:user -- create ci@example.test --password-stdin
+      - name: Backup permissions regression test
+        run: docker compose run --rm --no-deps --user root -v "$PWD/tests:/app/tests:ro" reader node --test tests/local-backup.test.mjs
       - name: Exercise local session protection
         run: node tests/local-api.smoke.mjs http://127.0.0.1:3000 ci@example.test a-strong-ci-test-password
       - name: Verify backup, clean-volume restore, and persistence
         run: |
           mkdir ci-backup
+          # The image runs as node (UID 1000), not the runner's host user.
+          sudo chown 1000:1000 ci-backup
+          sudo chmod 700 ci-backup
           docker compose stop reader
           docker compose run --rm --no-deps -v "$PWD/ci-backup:/backup" reader npm run local:backup -- backup /backup
           docker compose down -v
