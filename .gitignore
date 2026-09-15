@@ -41,6 +41,7 @@ serviceAccount*.json
 # local deployment state
 reader-app/data/
 reader-app/uploads/
+reader-app/backups/
 reader-app/.env.local
 reader-app/service-account*.json
 *.sqlite
