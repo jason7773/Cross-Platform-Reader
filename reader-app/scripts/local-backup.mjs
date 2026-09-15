@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
-import { cp, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
@@ -71,11 +71,17 @@ const restore = async (source) => {
     if (await countFiles(sourceFiles) !== manifest.fileCount) throw new Error("Backup files do not match the manifest.");
     await mkdir(dataDirectory, { recursive: true });
     const destinationDatabase = path.join(dataDirectory, databaseName);
-    const input = new Database(sourceDatabase, { readonly: true, fileMustExist: true });
+    // A backup mounted read-only from a host volume may not be openable by
+    // SQLite on every platform. Copy it into the writable destination volume
+    // before opening it, then remove the temporary copy after SQLite backup.
+    const temporarySource = path.join(dataDirectory, `.restore-source-${process.pid}.sqlite`);
+    await cp(sourceDatabase, temporarySource);
+    const input = new Database(temporarySource, { readonly: true, fileMustExist: true });
     try {
         await input.backup(destinationDatabase);
     } finally {
         input.close();
+        await rm(temporarySource, { force: true });
     }
     if (existsSync(sourceFiles)) await cp(sourceFiles, path.join(dataDirectory, filesName), { recursive: true, errorOnExist: true });
     console.log(`Restored backup from ${source}.`);
