@@ -2,8 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { loadBackendServices } from "@/backend";
 import { Book } from "@/types";
 import styles from "./page.module.css";
 import dynamic from "next/dynamic";
@@ -30,11 +29,10 @@ export default function ReadPage() {
 
         const fetchBook = async () => {
             try {
-                const docRef = doc(db, "books", id as string);
-                const docSnap = await getDoc(docRef);
+                const { library } = await loadBackendServices();
+                const loadedBook = await library.get(user.uid, id as string);
 
-                if (docSnap.exists()) {
-                    const loadedBook = { id: docSnap.id, ...docSnap.data() } as Book;
+                if (loadedBook) {
                     if (!isOwnerBook(loadedBook, user.uid)) {
                         setBook(null);
                         setFileUrl("");

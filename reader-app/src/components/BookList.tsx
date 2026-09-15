@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { collection, query, onSnapshot, orderBy, doc, deleteDoc, where } from "firebase/firestore";
-import { ref, deleteObject } from "firebase/storage";
 import Image from "next/image";
 import Link from "next/link";
-import { db, storage } from "@/firebase/config";
+import { loadBackendServices } from "@/backend";
 import { Book, ReadingProgress } from "@/types";
 import { useAuth } from "@/context/AuthContext";
 import { cacheBookFromUrl, deleteCachedBook, isBookCached } from "@/utils/bookCache";
@@ -19,7 +17,6 @@ type BookListProps = {
 type SortMode = "recent" | "title" | "author" | "progress";
 type ViewMode = "grid" | "list";
 
-const getStorageTarget = (path?: string, url?: string) => path || url || "";
 const selectClass = "min-h-9 rounded-lg border border-[var(--input-border)] bg-[var(--input-bg)] px-2 text-sm text-[var(--foreground)]";
 const actionButtonClass = "inline-flex min-h-10 flex-1 items-center justify-center rounded-lg px-3 text-center text-sm font-bold";
 
@@ -43,68 +40,64 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
     useEffect(() => {
         if (!user) return;
 
+        let unsubscribe: () => void = () => undefined;
+        let cancelled = false;
         setLoading(true);
-        const q = query(
-            collection(db, "books"),
-            where("uploadedBy", "==", user.uid),
-            orderBy("createdAt", "desc")
-        );
-
-        const unsubscribe = onSnapshot(
-            q,
-            (snapshot) => {
-                const booksData = snapshot.docs.map((doc) => ({
-                    id: doc.id,
-                    ...doc.data(),
-                })) as Book[];
-                setBooks(booksData);
-                booksData.forEach((book) => cacheBookMetadata(user.uid, book));
-                setError("");
-                setLoading(false);
-            },
-            (err) => {
-                console.error("Error loading library:", err);
+        void loadBackendServices().then(({ library }) => {
+            if (cancelled) return;
+            unsubscribe = library.subscribe(
+                user.uid,
+                (booksData) => {
+                    if (cancelled) return;
+                    setBooks(booksData);
+                    booksData.forEach((book) => cacheBookMetadata(user.uid, book));
+                    setError("");
+                    setLoading(false);
+                },
+                (err) => {
+                    console.error("Error loading library:", err);
+                    if (!cancelled) {
+                        setError("Could not load your library.");
+                        setLoading(false);
+                    }
+                },
+            );
+        }).catch((err) => {
+            console.error("Could not load backend services:", err);
+            if (!cancelled) {
                 setError("Could not load your library.");
                 setLoading(false);
             }
-        );
+        });
 
-        return () => unsubscribe();
+        return () => { cancelled = true; unsubscribe(); };
     }, [user]);
 
     useEffect(() => {
         if (!user) return;
 
-        const q = query(
-            collection(db, "progress"),
-            where("userId", "==", user.uid)
-        );
-
-        const unsubscribe = onSnapshot(
-            q,
-            (snapshot) => {
-                const remoteProgress = snapshot.docs.map((doc) => doc.data() as ReadingProgress);
-                const localProgress = getAllLocalProgress(user.uid);
-                const merged = [...remoteProgress, ...localProgress].reduce<Record<string, ReadingProgress>>((acc, item) => {
-                    const current = acc[item.bookId];
-                    if (!current || item.lastRead > current.lastRead) {
-                        acc[item.bookId] = item;
-                    }
-                    return acc;
-                }, {});
-
+        let unsubscribe: () => void = () => undefined;
+        let cancelled = false;
+        const applyProgress = (remoteProgress: ReadingProgress[]) => {
+            const localProgress = getAllLocalProgress(user.uid);
+            const merged = [...remoteProgress, ...localProgress].reduce<Record<string, ReadingProgress>>((acc, item) => {
+                const current = acc[item.bookId];
+                if (!current || item.lastRead > current.lastRead) acc[item.bookId] = item;
+                return acc;
+            }, {});
+            if (!cancelled) {
                 setProgressByBook(merged);
                 setSyncPending(hasPendingProgress(user.uid));
-            },
-            (err) => {
-                console.error("Error loading progress:", err);
-                const localProgress = getAllLocalProgress(user.uid);
-                setProgressByBook(Object.fromEntries(localProgress.map((item) => [item.bookId, item])));
-                setSyncPending(hasPendingProgress(user.uid));
             }
-        );
-
-        return () => unsubscribe();
+        };
+        void loadBackendServices().then(({ readerData }) => {
+            if (cancelled) return;
+            unsubscribe = readerData.subscribeProgress(user.uid, applyProgress, (err) => {
+                console.error("Error loading progress:", err);
+                applyProgress([]);
+            });
+        }).catch(() => applyProgress([]));
+        return () => { cancelled = true; unsubscribe(); };
     }, [user]);
 
     useEffect(() => {
@@ -190,31 +183,14 @@ export default function BookList({ searchQuery = "" }: BookListProps) {
             .sort((a, b) => (progressByBook[b.id]?.lastRead || 0) - (progressByBook[a.id]?.lastRead || 0))[0]
     ), [books, progressByBook]);
 
-    const deleteStorageTarget = async (pathOrUrl: string) => {
-        if (!pathOrUrl) return;
-        await deleteObject(ref(storage, pathOrUrl));
-    };
-
     const handleDelete = async (book: Book) => {
         setDeletingId(book.id);
         setError("");
 
         try {
-            const bookTarget = getStorageTarget(book.storagePath, book.url);
-            const coverTarget = getStorageTarget(book.coverStoragePath, book.coverUrl);
-
-            const storageResults = await Promise.allSettled([
-                deleteStorageTarget(bookTarget),
-                deleteStorageTarget(coverTarget),
-            ]);
-
-            storageResults.forEach((result) => {
-                if (result.status === "rejected") {
-                    console.warn("Failed to delete storage object:", result.reason);
-                }
-            });
-
-            await deleteDoc(doc(db, "books", book.id));
+            if (!user) return;
+            const { library } = await loadBackendServices();
+            await library.remove(user.uid, book.id);
             deleteCachedBook(user?.uid, getBookCacheKey(book)).catch((err) => {
                 console.warn("Could not delete cached book file:", err);
             });

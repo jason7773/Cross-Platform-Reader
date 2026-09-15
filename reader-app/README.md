@@ -27,7 +27,9 @@ npm run local:user -- create you@example.com --password-stdin
 
 The local API is under `/api/v1`. It enforces sessions, CSRF checks, member
 status, per-user ownership, upload limits, and private file responses. Use one
-application instance per SQLite volume.
+application instance per SQLite volume. Compose publishes only on `127.0.0.1`
+by default; configure a reverse proxy or explicitly set the bind address in
+`.env` before making it public.
 
 ## Validation
 
@@ -35,6 +37,7 @@ application instance per SQLite volume.
 npm run lint
 npm run typecheck
 npm run build
+npm run test:local-api -- http://127.0.0.1:3000 you@example.com YOUR_PASSWORD
 ```
 
 See the repository deployment and security documents for HTTPS, backups,

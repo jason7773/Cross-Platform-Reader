@@ -1,11 +1,9 @@
 "use client";
 import { useState } from "react";
-import { ref, uploadBytes } from "firebase/storage";
-import { collection, addDoc } from "firebase/firestore";
-import { storage, db } from "@/firebase/config";
+import { loadBackendServices } from "@/backend";
 import { useAuth } from "@/context/AuthContext";
-import { Book } from "@/types";
 import { cacheUploadedBook } from "@/utils/bookCache";
+import { getBookCacheKey } from "@/utils/bookFiles";
 import { extractBookMetadata } from "@/utils/bookMetadata";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Upload failed";
@@ -13,13 +11,6 @@ const MAX_BOOK_SIZE_BYTES = 100 * 1024 * 1024;
 const COVER_MAX_WIDTH = 480;
 const COVER_MAX_HEIGHT = 640;
 const COVER_QUALITY = 0.78;
-
-const immutableFileMetadata = (contentType: string) => ({
-    contentType,
-    // Objects remain private to their Storage owner. Browser offline caching is
-    // handled separately and must not turn an authenticated object public.
-    cacheControl: "private, no-store",
-});
 
 const getBookContentType = (format: "pdf" | "epub", fallback: string) => {
     if (format === "pdf" && fallback === "application/pdf") return fallback;
@@ -128,20 +119,8 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 throw new Error("Books must be smaller than 100 MB.");
             }
 
-            // 1. Upload book file to Storage
-            const storagePath = `books/${user.uid}/${Date.now()}_${file.name}`;
-            const storageRef = ref(storage, storagePath);
-            await uploadBytes(
-                storageRef,
-                file,
-                immutableFileMetadata(getBookContentType(format, file.type))
-            );
-            cacheUploadedBook(user.uid, storagePath, file, getBookContentType(format, file.type)).catch((err) => {
-                console.warn("Book uploaded, but local offline cache failed:", err);
-            });
-
-            // 2. Upload cover image (Manual or Auto-generated)
-            const coverUrl = "";
+            // The selected adapter owns file storage and metadata creation so
+            // the UI behaves the same in Firebase and local deployments.
             let finalCoverBlob: Blob | null = coverFile;
 
             if (!finalCoverBlob) {
@@ -155,41 +134,22 @@ export default function UploadBook({ onUploadSuccess }: { onUploadSuccess?: () =
                 }
             }
 
-            let coverStoragePath = "";
             if (finalCoverBlob) {
                 finalCoverBlob = await resizeCoverImage(finalCoverBlob);
-                const coverName = `cover_${Date.now()}.jpg`;
-                coverStoragePath = `covers/${user.uid}/${Date.now()}_${coverName}`;
-                const coverRef = ref(storage, coverStoragePath);
-                await uploadBytes(
-                    coverRef,
-                    finalCoverBlob,
-                    immutableFileMetadata("image/jpeg")
-                );
             }
 
-            // 3. Save metadata to Firestore
-            const newBook: Omit<Book, "id"> = {
+            const { library } = await loadBackendServices();
+            const createdBook = await library.upload(user, {
+                file,
                 title,
                 author: author || "Unknown",
-                format,
-                url: "",
-                coverUrl,
-                storagePath,
-                coverStoragePath,
-                fileSize: file.size,
-                mimeType: getBookContentType(format, file.type),
-                ...(finalCoverBlob ? {
-                    coverSize: finalCoverBlob.size,
-                    coverMimeType: "image/jpeg",
-                } : {}),
-                uploadedBy: user.uid,
-                createdAt: Date.now(),
                 tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
                 notes: notes.trim(),
-            };
-
-            await addDoc(collection(db, "books"), newBook);
+                cover: finalCoverBlob,
+            });
+            cacheUploadedBook(user.uid, getBookCacheKey(createdBook), file, getBookContentType(format, file.type)).catch((cacheError) => {
+                console.warn("Book uploaded, but local offline cache failed:", cacheError);
+            });
 
             setFile(null);
             setCoverFile(null);

@@ -9,8 +9,10 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "local:user": "node scripts/local-users.mjs",
+    "local:backup": "node scripts/local-backup.mjs",
     "firebase:member": "node scripts/firebase-members.mjs",
-    "test:rules": "firebase emulators:exec --only firestore,storage \"vitest run tests/firebase.rules.test.ts\"",
+    "test:local-api": "node tests/local-api.smoke.mjs",
+    "test:rules": "npx --yes firebase-tools@13.35.1 emulators:exec --only firestore,storage \"npm run test:rules:run\"",
     "test:rules:run": "vitest run tests/firebase.rules.test.ts"
   },
   "engines": {

@@ -1,4 +1,4 @@
-import { apiError, apiJson, withApiError } from "@/server/api";
+import { apiError, apiJson, requireLocalBackend, withApiError } from "@/server/api";
 import { createSession, findUserByEmail, getSessionCookieName, sessionCookieOptions, verifyPassword } from "@/server/local";
 
 export const runtime = "nodejs";
@@ -8,8 +8,13 @@ const attempts = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 10;
 const WINDOW_MS = 15 * 60 * 1000;
 
-const attemptKey = (request: Request) => request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip") || "unknown";
+const attemptKey = (request: Request) => {
+    if (process.env.TRUST_PROXY === "true") {
+        return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+            || request.headers.get("x-real-ip") || "proxy-unknown";
+    }
+    return "local-client-pool";
+};
 
 const recordAttempt = (key: string) => {
     const now = Date.now();
@@ -21,6 +26,10 @@ const recordAttempt = (key: string) => {
 
 export async function POST(request: Request) {
     return withApiError(async () => {
+        const backendError = requireLocalBackend();
+        if (backendError) return backendError;
+        const length = Number(request.headers.get("content-length") || "0");
+        if (length > 64 * 1024) return apiError("Request is too large.", 413);
         const key = attemptKey(request);
         if (recordAttempt(key)) return apiError("Too many sign-in attempts. Try again later.", 429);
         const body = await request.json() as { email?: unknown; password?: unknown };

@@ -34,6 +34,7 @@ serviceAccount*.json
 .DS_Store
 *.pem
 .env*
+!.env.example
 .vercel
 *.tsbuildinfo
 

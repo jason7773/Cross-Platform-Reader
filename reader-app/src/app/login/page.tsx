@@ -1,9 +1,8 @@
 "use client";
 import { useState } from "react";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { auth, googleProvider, firebaseEnabled } from "@/firebase/config";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { getBackend, loadBackendServices } from "@/backend";
 
 const getErrorMessage = (err: unknown) => err instanceof Error ? err.message : "Authentication failed";
 
@@ -19,23 +18,10 @@ export default function LoginPage() {
         e.preventDefault();
         setError("");
         try {
-            if (!firebaseEnabled) {
-                const response = await fetch("/api/v1/auth/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, password }),
-                });
-                const payload = await response.json() as { error?: string };
-                if (!response.ok) throw new Error(payload.error || "Authentication failed");
-                window.dispatchEvent(new Event("reader-session-changed"));
-                router.push("/");
-                return;
-            }
-            if (isSignUp) {
-                await createUserWithEmailAndPassword(auth, email, password);
-            } else {
-                await signInWithEmailAndPassword(auth, email, password);
-            }
+            const services = await loadBackendServices();
+            if (isSignUp) await services.auth.signUpWithPassword(email, password);
+            else await services.auth.signInWithPassword(email, password);
+            window.dispatchEvent(new Event("reader-session-changed"));
             router.push("/");
         } catch (err: unknown) {
             setError(getErrorMessage(err));
@@ -44,11 +30,9 @@ export default function LoginPage() {
 
     const handleGoogleLogin = async () => {
         try {
-            if (!firebaseEnabled) {
-                setError("Google sign-in is configured only for Firebase deployments.");
-                return;
-            }
-            await signInWithPopup(auth, googleProvider);
+            const services = await loadBackendServices();
+            await services.auth.signInWithGoogle();
+            window.dispatchEvent(new Event("reader-session-changed"));
             router.push("/");
         } catch (err: unknown) {
             setError(getErrorMessage(err));
@@ -64,13 +48,13 @@ export default function LoginPage() {
                 <h1 className="m-0 text-center text-2xl font-extrabold">{isSignUp ? "Sign Up" : "Login"}</h1>
                 {(error || accessError) && <p className="m-0 rounded-lg bg-red-500/10 p-3 text-center text-sm text-[var(--danger)]">{error || accessError}</p>}
 
-                <button
+                {getBackend() === "firebase" && <button
                     type="button"
                     onClick={handleGoogleLogin}
                     className="min-h-11 rounded-lg border border-[var(--input-border)] bg-[var(--surface-raised)] px-4 text-sm font-extrabold text-[var(--foreground)] hover:bg-[var(--secondary)]"
                 >
                     Sign in with Google
-                </button>
+                </button>}
                 <div className="flex items-center gap-3 text-xs text-[var(--muted)] before:h-px before:flex-1 before:bg-[var(--card-border)] after:h-px after:flex-1 after:bg-[var(--card-border)]">
                     OR
                 </div>
@@ -97,7 +81,7 @@ export default function LoginPage() {
                 >
                     {isSignUp ? "Sign Up" : "Login"}
                 </button>
-                <button
+                {getBackend() === "firebase" && <button
                     type="button"
                     className="mt-1 text-center text-sm font-bold text-[var(--primary)]"
                     onClick={() => setIsSignUp(!isSignUp)}
@@ -105,7 +89,7 @@ export default function LoginPage() {
                     {isSignUp
                         ? "Already have an account? Login"
                         : "Don't have an account? Sign Up"}
-                </button>
+                </button>}
             </form>
         </div>
     );

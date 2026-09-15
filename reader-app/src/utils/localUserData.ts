@@ -4,11 +4,13 @@ import { clearCachedBookMetadata } from "@/utils/bookMetadataCache";
 import { clearLocalHighlights } from "@/utils/highlights";
 import { clearLocalProgress } from "@/utils/readingProgress";
 import { deleteCacheByPrefix, removeLocalStorageByPrefixes } from "@/utils/userScopedStorage";
+import { clearResolvedStorageUrls } from "@/utils/bookFiles";
 
 const EPUB_SETTINGS_PREFIX = "reader-settings:epub:";
 const PDF_SETTINGS_PREFIX = "reader-settings:pdf:";
 
 export const clearUserLocalData = async (userId: string) => {
+    clearResolvedStorageUrls();
     clearCachedBookMetadata(userId);
     clearLocalProgress(userId);
     clearLocalBookmarks(userId);

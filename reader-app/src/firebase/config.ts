@@ -7,18 +7,20 @@ import type { Firestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import type { FirebaseStorage } from "firebase/storage";
 
-const requiredFirebaseEnvironment = [
-    "NEXT_PUBLIC_FIREBASE_API_KEY",
-    "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
-    "NEXT_PUBLIC_FIREBASE_PROJECT_ID",
-    "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
-    "NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
-    "NEXT_PUBLIC_FIREBASE_APP_ID",
-] as const;
+const firebaseEnvironment = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() || "",
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim() || "",
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "",
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "",
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() || "",
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim() || "",
+};
 
-export const readerBackend = process.env.NEXT_PUBLIC_READER_BACKEND || "firebase";
+export const readerBackend = process.env.NEXT_PUBLIC_READER_BACKEND?.trim() || "firebase";
 export const firebaseEnabled = readerBackend === "firebase";
-const missingFirebaseEnvironment = requiredFirebaseEnvironment.filter((name) => !process.env[name]?.trim());
+const missingFirebaseEnvironment = Object.entries(firebaseEnvironment)
+    .filter(([, value]) => !value)
+    .map(([field]) => `NEXT_PUBLIC_FIREBASE_${field === "apiKey" ? "API_KEY" : field === "authDomain" ? "AUTH_DOMAIN" : field === "projectId" ? "PROJECT_ID" : field === "storageBucket" ? "STORAGE_BUCKET" : field === "messagingSenderId" ? "MESSAGING_SENDER_ID" : "APP_ID"}`);
 
 export const firebaseConfigError = firebaseEnabled && missingFirebaseEnvironment.length
     ? `Firebase is not configured. Set ${missingFirebaseEnvironment.join(", ")} before running this deployment.`
@@ -29,12 +31,7 @@ export const assertFirebaseConfigured = () => {
 };
 
 const firebaseConfig: FirebaseOptions = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    ...firebaseEnvironment,
 };
 
 // Local deployments can import shared UI code without creating a Firebase App.

@@ -37,6 +37,10 @@ export async function POST(request: Request) {
     const session = await requireMutationSession(request);
     if (isApiError(session)) return session;
     return withApiError(async () => {
+        const contentLength = Number(request.headers.get("content-length") || "0");
+        if (contentLength > MAX_BOOK_BYTES + MAX_COVER_BYTES + 512 * 1024) {
+            return apiError("Upload request is too large.", 413);
+        }
         const form = await request.formData();
         const file = formFile(form, "file");
         if (!file) return apiError("A PDF or ePub file is required.");

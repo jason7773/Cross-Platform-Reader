@@ -21,3 +21,70 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+      - run: npm audit --omit=dev --audit-level=high
+      - name: Firebase rules emulator tests
+        run: npx --yes firebase-tools@13.35.1 emulators:exec --only firestore,storage "npm run test:rules:run"
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  local-docker-smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: reader-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: reader-app/package-lock.json
+      - name: Configure isolated local deployment
+        run: |
+          printf '%s\n' \
+            'SESSION_SECRET=ci-local-reader-session-secret-at-least-32-characters' \
+            'COOKIE_SECURE=false' \
+            'APP_ORIGIN=http://127.0.0.1:3000' > .env
+      - name: Build and start local reader
+        run: docker compose up -d --build
+      - name: Wait for health check
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/v1/health; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs reader
+          exit 1
+      - name: Create smoke-test member
+        run: printf '%s' 'a-strong-ci-test-password' | docker compose exec -T reader npm run local:user -- create ci@example.test --password-stdin
+      - name: Exercise local session protection
+        run: node tests/local-api.smoke.mjs http://127.0.0.1:3000 ci@example.test a-strong-ci-test-password
+      - name: Verify backup, clean-volume restore, and persistence
+        run: |
+          mkdir ci-backup
+          docker compose stop reader
+          docker compose run --rm --no-deps -v "$PWD/ci-backup:/backup" reader npm run local:backup -- backup /backup
+          docker compose down -v
+          docker compose run --rm --no-deps -v "$PWD/ci-backup:/backup:ro" reader npm run local:backup -- restore /backup
+          docker compose up -d
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/api/v1/health; then break; fi
+            sleep 2
+          done
+          node tests/local-api.smoke.mjs http://127.0.0.1:3000 ci@example.test a-strong-ci-test-password
+      - name: Collect failed container logs
+        if: failure()
+        run: docker compose logs --no-color || true
+      - name: Remove test deployment
+        if: always()
+        run: docker compose down -v --remove-orphans

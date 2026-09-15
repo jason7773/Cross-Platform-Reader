@@ -6,7 +6,11 @@ books and reading data.
 
 ## Docker local mode
 
-Use this mode on one VPS or NAS. It does not require a Firebase account.
+Use this mode on one VPS or NAS. It does not require a Firebase account. The
+default Compose ports bind to `127.0.0.1`; set `READER_BIND_ADDRESS=0.0.0.0`
+only when a trusted reverse proxy or firewall policy is in place. The optional
+Caddy profile also binds to loopback by default. Set
+`READER_PROXY_BIND_ADDRESS=0.0.0.0` when Caddy is the public HTTPS endpoint.
 
 ```bash
 cd reader-app
@@ -17,16 +21,15 @@ docker compose exec -T reader npm run local:user -- create you@example.com --pas
 
 Set a long random `SESSION_SECRET`, `APP_ORIGIN`, and persistent paths in
 `.env`. Mount the data volume and expose the app through HTTPS (for example,
-the included Caddy profile). Keep the SQLite and uploads volumes private and
-back them up together using the documented backup command. This mode is
-single-instance; do not run multiple application replicas against one SQLite
-file.
+the included Caddy profile). Keep the SQLite and uploads volumes private. This
+mode is single-instance; do not run multiple application replicas against one
+SQLite file.
 
 ## Firebase mode
 
 Create a new Firebase project, enable Email/Password or Google Authentication,
 create Firestore and Storage, and register a web app. Copy the values from
-`reader-app/env-example` into the deployment environment. Do not copy any
+`reader-app/.env.example` into the deployment environment. Do not copy any
 `.env.local` from another installation.
 
 From `reader-app/`, install the Firebase CLI and deploy rules, indexes, and
@@ -45,8 +48,27 @@ must never be placed in the browser bundle, Docker image, or repository.
 
 ## Backups and upgrades
 
-For Docker, stop writes, create a consistent SQLite backup and copy the uploads
-directory in the same snapshot. Test restoring into an empty volume before
-removing the source. For Firebase, use provider exports and retain Firestore
-and Storage retention policies. Offline browser copies remain on the device
-after a server-side deletion.
+For Docker, stop the application before a backup or restore. The backup command
+uses SQLite's backup API and copies the private `files/` tree with a manifest.
+Store the destination outside the Docker data volume.
+
+```bash
+docker compose stop reader
+docker compose run --rm --no-deps -v "$PWD/backups:/backup" reader \
+  npm run local:backup -- backup /backup/reader-$(date +%F)
+```
+
+Restore only to an empty data volume. The command rejects a non-empty target or
+a database and file tree that do not match the manifest.
+
+```bash
+docker compose down -v
+docker compose run --rm --no-deps -v "$PWD/backups:/backup:ro" reader \
+  npm run local:backup -- restore /backup/reader-2026-09-15
+docker compose up -d
+```
+
+Test the restore in an empty volume before removing the backup source. For
+Firebase, use provider exports and retain Firestore and Storage retention
+policies. Offline browser copies remain on the device after a server-side
+deletion.

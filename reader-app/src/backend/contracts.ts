@@ -12,6 +12,17 @@ export type Unsubscribe = () => void;
 
 export type BookUpload = Omit<Book, "id" | "uploadedBy" | "createdAt">;
 
+/** A complete book submission. The backend owns how files and metadata are
+ * persisted so the reader UI never needs provider SDK calls. */
+export type LibraryUpload = {
+    file: File;
+    cover?: Blob | null;
+    title: string;
+    author: string;
+    tags: string[];
+    notes: string;
+};
+
 export type StoredFile = {
     path: string;
     contentType: string;
@@ -31,6 +42,7 @@ export interface LibraryRepository {
     get(userId: string, bookId: string): Promise<Book | null>;
     subscribe(userId: string, listener: (books: Book[]) => void, onError?: (error: Error) => void): Unsubscribe;
     create(user: SessionUser, book: BookUpload): Promise<Book>;
+    upload(user: SessionUser, upload: LibraryUpload): Promise<Book>;
     remove(userId: string, bookId: string): Promise<void>;
 }
 
@@ -41,10 +53,10 @@ export interface ReaderDataRepository {
     saveProgress(progress: ReadingProgress): Promise<void>;
     listBookmarks(userId: string, bookId: string): Promise<ReaderBookmark[]>;
     saveBookmark(bookmark: ReaderBookmark): Promise<void>;
-    removeBookmark(userId: string, bookmarkId: string): Promise<void>;
+    removeBookmark(userId: string, bookId: string, bookmarkId: string): Promise<void>;
     listHighlights(userId: string, bookId: string): Promise<ReaderHighlight[]>;
     saveHighlight(highlight: ReaderHighlight): Promise<void>;
-    removeHighlight(userId: string, highlightId: string): Promise<void>;
+    removeHighlight(userId: string, bookId: string, highlightId: string): Promise<void>;
     getEpubSettings(userId: string): Promise<EpubReaderSettings | null>;
     getPdfSettings(userId: string): Promise<PdfReaderSettings | null>;
     saveEpubSettings(userId: string, settings: EpubReaderSettings): Promise<void>;

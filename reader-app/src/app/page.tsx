@@ -2,14 +2,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { signOut } from "firebase/auth";
-import { auth, firebaseEnabled } from "@/firebase/config";
 import UploadBook from "@/components/UploadBook";
 import BookList from "@/components/BookList";
 import ThemeToggle from "@/components/ThemeToggle";
 import { deleteUserData, exportUserData } from "@/utils/accountData";
 import { clearUserLocalData, getUserOfflineBookCount, removeUserOfflineBooks } from "@/utils/localUserData";
-import LocalLibrary from "@/components/LocalLibrary";
+import { loadBackendServices } from "@/backend";
 
 export default function Home() {
   const { user, loading } = useAuth();
@@ -35,8 +33,9 @@ export default function Home() {
     if (user) {
       await clearUserLocalData(user.uid);
     }
-    if (firebaseEnabled) await signOut(auth);
-    else await fetch("/api/v1/auth/logout", { method: "POST", headers: { "x-csrf-token": "" } });
+    const services = await loadBackendServices();
+    await services.auth.signOut();
+    window.dispatchEvent(new Event("reader-session-changed"));
   };
 
   const handleRemoveOfflineBooks = async () => {
@@ -68,14 +67,14 @@ export default function Home() {
     if (!confirmed) return;
     setPrivacyBusy("delete");
     await deleteUserData(user);
-    if (firebaseEnabled) await signOut(auth);
+    const services = await loadBackendServices();
+    await services.auth.signOut();
+    window.dispatchEvent(new Event("reader-session-changed"));
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-[var(--background)] text-base text-[var(--muted)]">Loading...</div>;
 
   if (!user) return null;
-
-  if (!firebaseEnabled) return <main className="min-h-screen bg-[var(--background)] text-[var(--foreground)]"><header className="flex items-center justify-between border-b p-4"><strong>Reader · Local library</strong><button onClick={handleLogout} className="rounded border px-3 py-2">Logout</button></header><LocalLibrary /></main>;
 
   return (
     <main className="min-h-screen bg-[var(--background)] pb-[env(safe-area-inset-bottom)] text-[var(--foreground)]">

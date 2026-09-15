@@ -1,27 +1,53 @@
-import { getDownloadURL, ref } from "firebase/storage";
-import { storage } from "@/firebase/config";
+import { getReaderBackend, loadBackendServices } from "@/backend";
 import { Book } from "@/types";
 
+const resolvedObjectUrls = new Map<string, string>();
+
+const assertInternalStoragePath = (path: string) => {
+    if (!/^(books|covers)\/[A-Za-z0-9_-]+\/[^/]+$/.test(path)) {
+        throw new Error("Book files must use an internal Firebase Storage path.");
+    }
+    return path;
+};
+
+const toStoragePath = (path: string) => assertInternalStoragePath(path);
+
 export const getBookCacheKey = (book: Pick<Book, "id" | "storagePath" | "url">) => (
-    book.storagePath || book.url || `legacy-book:${book.id}`
+    `${process.env.NEXT_PUBLIC_READER_DEPLOYMENT_ID || "default"}:${getReaderBackend()}:${book.storagePath || book.url || `legacy-book:${book.id}`}`
 );
 
 export const getCoverCacheKey = (book: Pick<Book, "id" | "coverStoragePath" | "coverUrl">) => (
-    book.coverStoragePath || book.coverUrl || `legacy-cover:${book.id}`
+    `${process.env.NEXT_PUBLIC_READER_DEPLOYMENT_ID || "default"}:${getReaderBackend()}:${book.coverStoragePath || book.coverUrl || `legacy-cover:${book.id}`}`
 );
 
-export const resolveStorageUrl = async (pathOrUrl?: string) => {
-    if (!pathOrUrl) return "";
-    if (/^https?:\/\//i.test(pathOrUrl)) return pathOrUrl;
-    return getDownloadURL(ref(storage, pathOrUrl));
+export const resolveStorageUrl = async (path?: string, localApiPath?: string) => {
+    if (!path && !localApiPath) return "";
+    const cacheKey = localApiPath || path || "";
+    const existing = resolvedObjectUrls.get(cacheKey);
+    if (existing) return existing;
+
+    const { files } = await loadBackendServices();
+    const source = getReaderBackend() === "local" ? localApiPath : toStoragePath(path || "");
+    if (!source) return "";
+    // Each adapter authorizes the Blob read itself. The UI only keeps a short
+    // lived object URL, never a transferable Storage download URL.
+    const objectUrl = URL.createObjectURL(await files.read(source));
+    resolvedObjectUrls.set(cacheKey, objectUrl);
+    return objectUrl;
 };
 
-export const resolveBookUrl = async (book: Pick<Book, "storagePath" | "url">) => (
-    resolveStorageUrl(book.storagePath || book.url)
+/** Release all in-memory URLs when the signed-in library session ends. */
+export const clearResolvedStorageUrls = () => {
+    resolvedObjectUrls.forEach((url) => URL.revokeObjectURL(url));
+    resolvedObjectUrls.clear();
+};
+
+export const resolveBookUrl = async (book: Pick<Book, "id" | "storagePath" | "url">) => (
+    resolveStorageUrl(book.storagePath || book.url, `/api/v1/books/${encodeURIComponent(book.id)}/file`)
 );
 
-export const resolveCoverUrl = async (book: Pick<Book, "coverStoragePath" | "coverUrl">) => (
-    resolveStorageUrl(book.coverStoragePath || book.coverUrl)
+export const resolveCoverUrl = async (book: Pick<Book, "id" | "coverStoragePath" | "coverUrl">) => (
+    resolveStorageUrl(book.coverStoragePath || book.coverUrl, `/api/v1/books/${encodeURIComponent(book.id)}/cover`)
 );
 
 export const isOwnerBook = (book: Pick<Book, "uploadedBy"> | null | undefined, userId?: string) => (

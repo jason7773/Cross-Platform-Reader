@@ -26,7 +26,14 @@ const auth: AuthService = {
         };
         void poll();
         const timer = window.setInterval(poll, 30_000);
-        return () => { stopped = true; window.clearInterval(timer); };
+        window.addEventListener("reader-session-changed", poll);
+        window.addEventListener("focus", poll);
+        return () => {
+            stopped = true;
+            window.clearInterval(timer);
+            window.removeEventListener("reader-session-changed", poll);
+            window.removeEventListener("focus", poll);
+        };
     },
     async signInWithPassword(email, password) { const payload = await request<{ user: SessionUser; csrfToken: string }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }); csrfToken = payload.csrfToken; return payload.user; },
     async signUpWithPassword() { throw new Error("Create local users with the local:user administrator command."); },
@@ -37,22 +44,66 @@ const auth: AuthService = {
 const library: LibraryRepository = {
     async list() { return (await request<{ books: Book[] }>("/books")).books; },
     async get(_, bookId) { try { return (await request<{ book: Book }>(`/books/${encodeURIComponent(bookId)}`)).book; } catch { return null; } },
-    subscribe(userId, listener, onError) { let stopped = false; const poll = async () => { try { const books = await library.list(userId); if (!stopped) listener(books); } catch (error) { onError?.(error instanceof Error ? error : new Error("Library request failed.")); } }; void poll(); const timer = window.setInterval(poll, 30_000); return () => { stopped = true; window.clearInterval(timer); }; },
+    subscribe(userId, listener, onError) {
+        let stopped = false;
+        const poll = async () => {
+            try {
+                const books = await library.list(userId);
+                if (!stopped) listener(books);
+            } catch (error) {
+                onError?.(error instanceof Error ? error : new Error("Library request failed."));
+            }
+        };
+        void poll();
+        const timer = window.setInterval(poll, 30_000);
+        window.addEventListener("focus", poll);
+        return () => { stopped = true; window.clearInterval(timer); window.removeEventListener("focus", poll); };
+    },
     async create() { throw new Error("Local book creation requires a multipart upload; use FileStore.uploadBook."); },
+    async upload(_, upload) {
+        const form = new FormData();
+        form.set("file", upload.file);
+        form.set("title", upload.title);
+        form.set("author", upload.author);
+        form.set("tags", JSON.stringify(upload.tags));
+        form.set("notes", upload.notes);
+        if (upload.cover) {
+            form.set("cover", new File([upload.cover], "cover.jpg", { type: upload.cover.type || "image/jpeg" }));
+        }
+        return (await request<{ book: Book }>("/books", { method: "POST", body: form })).book;
+    },
     async remove(_, bookId) { await request(`/books/${encodeURIComponent(bookId)}`, { method: "DELETE" }); },
 };
 
 const readerData: ReaderDataRepository = {
     async getProgress(_, bookId) { return (await request<{ progress?: ReadingProgress }>(`/books/${encodeURIComponent(bookId)}/progress`)).progress || null; },
-    async listProgress() { return []; },
-    subscribeProgress(userId, listener) { void readerData.listProgress(userId).then(listener); return () => undefined; },
+    async listProgress(userId) {
+        const books = await library.list(userId);
+        const records = await Promise.all(books.map((book) => readerData.getProgress(userId, book.id)));
+        return records.filter((record): record is ReadingProgress => Boolean(record));
+    },
+    subscribeProgress(userId, listener, onError) {
+        let stopped = false;
+        const poll = async () => {
+            try {
+                const progress = await readerData.listProgress(userId);
+                if (!stopped) listener(progress);
+            } catch (error) {
+                onError?.(error instanceof Error ? error : new Error("Progress request failed."));
+            }
+        };
+        void poll();
+        const timer = window.setInterval(poll, 30_000);
+        window.addEventListener("focus", poll);
+        return () => { stopped = true; window.clearInterval(timer); window.removeEventListener("focus", poll); };
+    },
     async saveProgress(progress) { await request(`/books/${encodeURIComponent(progress.bookId)}/progress`, { method: "PUT", body: JSON.stringify(progress) }); },
     async listBookmarks(_, bookId) { return (await request<{ bookmarks: ReaderBookmark[] }>(`/books/${encodeURIComponent(bookId)}/bookmarks`)).bookmarks; },
     async saveBookmark(bookmark) { await request(`/books/${encodeURIComponent(bookmark.bookId)}/bookmarks`, { method: "PUT", body: JSON.stringify(bookmark) }); },
-    async removeBookmark() { throw new Error("Local bookmark deletion requires the book id and is handled by the reader UI."); },
+    async removeBookmark(_, bookId, bookmarkId) { await request(`/books/${encodeURIComponent(bookId)}/bookmarks?id=${encodeURIComponent(bookmarkId)}`, { method: "DELETE" }); },
     async listHighlights(_, bookId) { return (await request<{ highlights: ReaderHighlight[] }>(`/books/${encodeURIComponent(bookId)}/highlights`)).highlights; },
     async saveHighlight(highlight) { await request(`/books/${encodeURIComponent(highlight.bookId)}/highlights`, { method: "PUT", body: JSON.stringify(highlight) }); },
-    async removeHighlight() { throw new Error("Local highlight deletion requires the book id and is handled by the reader UI."); },
+    async removeHighlight(_, bookId, highlightId) { await request(`/books/${encodeURIComponent(bookId)}/highlights?id=${encodeURIComponent(highlightId)}`, { method: "DELETE" }); },
     async getEpubSettings(userId) { return (await request<{ settings?: EpubReaderSettings }>(`/settings?kind=epub`)).settings || null; },
     async getPdfSettings(userId) { return (await request<{ settings?: PdfReaderSettings }>(`/settings?kind=pdf`)).settings || null; },
     async saveEpubSettings(_, settings) { await request("/settings", { method: "PUT", body: JSON.stringify({ kind: "epub", settings }) }); },

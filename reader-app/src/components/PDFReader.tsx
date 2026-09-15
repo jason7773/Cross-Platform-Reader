@@ -4,7 +4,7 @@ import { Document, Page, pdfjs } from "react-pdf";
 import type { DocumentCallback } from "react-pdf/dist/shared/types.js";
 import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
-import { doc, getDoc } from "firebase/firestore";
+import { loadBackendServices } from "@/backend";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getCachedBookBlob } from "@/utils/bookCache";
@@ -12,7 +12,6 @@ import { addBookmark, deleteBookmark, getBookmarks, loadBookmarks, updateBookmar
 import { getPdfSettings, loadPdfSettings, savePdfSettings } from "@/utils/readerSettings";
 import { addHighlight, deleteHighlight, loadHighlights } from "@/utils/highlights";
 import { getLocalProgress, saveReadingProgress, syncPendingProgress } from "@/utils/readingProgress";
-import { db } from "@/firebase/config";
 import { HighlightRect, PdfReaderSettings, ReaderBookmark, ReaderHighlight } from "@/types";
 import styles from "./PDFReader.module.css";
 
@@ -145,7 +144,7 @@ export default function PDFReader({ url, cacheKey, bookId, mimeType }: { url: st
             } catch (err) {
                 console.error("Failed to load PDF file:", err);
                 if (!cancelled) {
-                    setPdfError(`${getErrorMessage(err)}. Check Firebase Storage CORS if this only happens after deployment.`);
+                    setPdfError(`${getErrorMessage(err)}. Check that the library file service is reachable.`);
                 }
             }
         };
@@ -242,11 +241,10 @@ export default function PDFReader({ url, cacheKey, bookId, mimeType }: { url: st
         if (!user) return;
         const loadProgress = async () => {
             try {
-                const docRef = doc(db, "progress", `${user.uid}_${bookId}`);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    const savedPage = docSnap.data().location;
-                    if (savedPage) setPageNumber(Number(savedPage));
+                const { readerData } = await loadBackendServices();
+                const savedProgress = await readerData.getProgress(user.uid, bookId);
+                if (savedProgress?.location) {
+                    setPageNumber(Number(savedProgress.location));
                     return;
                 }
             } catch (err) {

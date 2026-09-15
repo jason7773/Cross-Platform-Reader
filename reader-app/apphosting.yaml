@@ -1,0 +1,44 @@
+# Firebase App Hosting configuration for the `reader-app` source directory.
+# Before deploying, replace each empty Firebase value with the web app values
+# from the Firebase console. These are public app identifiers, not Admin SDK
+# credentials. They must be available during the Next.js build.
+runConfig:
+  maxInstances: 1
+  minInstances: 0
+
+env:
+  - variable: NEXT_PUBLIC_READER_BACKEND
+    value: firebase
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: ""
+    availability:
+      - BUILD
+      - RUNTIME

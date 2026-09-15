@@ -1,7 +1,5 @@
-import { doc, setDoc } from "firebase/firestore";
-import { User } from "firebase/auth";
-import { db } from "@/firebase/config";
-import { ReadingProgress } from "@/types";
+import { loadBackendServices } from "@/backend";
+import { ReadingProgress, SessionUser } from "@/types";
 
 import { removeLocalStorageByPrefixes } from "@/utils/userScopedStorage";
 
@@ -76,7 +74,7 @@ const queuePendingProgress = (progress: ReadingProgress) => {
     writePendingProgress(progress.userId, nextItems);
 };
 
-export const saveReadingProgress = async (user: User | null | undefined, progress: Omit<ReadingProgress, "userId">) => {
+export const saveReadingProgress = async (user: SessionUser | null | undefined, progress: Omit<ReadingProgress, "userId">) => {
     if (!user) return;
 
     const nextProgress: ReadingProgress = {
@@ -87,14 +85,15 @@ export const saveReadingProgress = async (user: User | null | undefined, progres
     cacheLocalProgress(nextProgress);
 
     try {
-        await setDoc(doc(db, "progress", `${user.uid}_${progress.bookId}`), nextProgress, { merge: true });
+        const { readerData } = await loadBackendServices();
+        await readerData.saveProgress(nextProgress);
     } catch (err) {
         console.warn("Progress saved locally and will sync later:", err);
         queuePendingProgress(nextProgress);
     }
 };
 
-export const syncPendingProgress = async (user: User | null | undefined) => {
+export const syncPendingProgress = async (user: SessionUser | null | undefined) => {
     if (!user) return;
 
     const ownItems = readPendingProgress(user.uid).filter((item) => item.userId === user.uid);
@@ -102,7 +101,8 @@ export const syncPendingProgress = async (user: User | null | undefined) => {
 
     for (const item of ownItems) {
         try {
-            await setDoc(doc(db, "progress", `${item.userId}_${item.bookId}`), item, { merge: true });
+            const { readerData } = await loadBackendServices();
+            await readerData.saveProgress(item);
         } catch (err) {
             console.warn("Pending progress sync failed:", err);
             failedItems.push(item);

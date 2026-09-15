@@ -6,11 +6,12 @@ services:
         NEXT_PUBLIC_READER_BACKEND: local
     env_file: .env
     environment:
+      READER_BACKEND: local
       READER_DATA_DIR: /data
     volumes:
       - reader-data:/data
     ports:
-      - "3000:3000"
+      - "${READER_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
@@ -28,8 +29,8 @@ services:
     environment:
       READER_DOMAIN: ${READER_DOMAIN:-localhost}
     ports:
-      - "80:80"
-      - "443:443"
+      - "${READER_PROXY_BIND_ADDRESS:-127.0.0.1}:80:80"
+      - "${READER_PROXY_BIND_ADDRESS:-127.0.0.1}:443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data

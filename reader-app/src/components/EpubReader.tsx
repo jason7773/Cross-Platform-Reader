@@ -1,8 +1,7 @@
 "use client";
 import { MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 import JSZip from "jszip";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/firebase/config";
+import { loadBackendServices } from "@/backend";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { getCachedBookBlob } from "@/utils/bookCache";
@@ -363,9 +362,10 @@ export default function EpubReader({ url, cacheKey, bookId, mimeType }: { url: s
                 let savedLocation: string | number | null = null;
 
                 try {
-                    const docSnap = await getDoc(doc(db, "progress", `${user.uid}_${bookId}`));
-                    savedLocation = docSnap.exists() ? docSnap.data().location : getLocalProgress(user.uid, bookId)?.location || null;
-                    const savedPercentage = docSnap.exists() ? docSnap.data().percentage : getLocalProgress(user.uid, bookId)?.percentage;
+                    const { readerData } = await loadBackendServices();
+                    const savedProgress = await readerData.getProgress(user.uid, bookId);
+                    savedLocation = savedProgress?.location || getLocalProgress(user.uid, bookId)?.location || null;
+                    const savedPercentage = savedProgress?.percentage ?? getLocalProgress(user.uid, bookId)?.percentage;
                     if (typeof savedPercentage === "number") setProgressPercent(clampPercent(savedPercentage));
                 } catch {
                     savedLocation = getLocalProgress(user.uid, bookId)?.location || null;
@@ -377,7 +377,7 @@ export default function EpubReader({ url, cacheKey, bookId, mimeType }: { url: s
                 setCurrentIndex(findChapterIndex(loadedChapters, savedLocation));
             } catch (err: unknown) {
                 console.error("Error fetching ePub:", err);
-                setError(`${getErrorMessage(err)}. Check Firebase Storage CORS if this only happens after deployment.`);
+                setError(`${getErrorMessage(err)}. Check that the library file service is reachable.`);
             } finally {
                 setLoading(false);
             }

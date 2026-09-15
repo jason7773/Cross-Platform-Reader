@@ -16,6 +16,9 @@ export type FirebasePublicConfig = {
     appId: string;
 };
 
+// Next only substitutes public environment variables when each property access
+// is statically visible during the client build. Do not replace these reads
+// with process.env[name].
 const firebaseEnvironmentFields = {
     apiKey: "NEXT_PUBLIC_FIREBASE_API_KEY",
     authDomain: "NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN",
@@ -25,10 +28,23 @@ const firebaseEnvironmentFields = {
     appId: "NEXT_PUBLIC_FIREBASE_APP_ID",
 } as const;
 
-const publicEnv = (key: string) => process.env[key]?.trim() || "";
+const publicFirebaseEnvironment = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.trim() || "",
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim() || "",
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID?.trim() || "",
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim() || "",
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim() || "",
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID?.trim() || "",
+} satisfies FirebasePublicConfig;
+
+const readerBackendEnvironment = process.env.NEXT_PUBLIC_READER_BACKEND?.trim() || process.env.READER_BACKEND?.trim() || "";
+const serverBackendEnvironment = process.env.READER_BACKEND?.trim() || "";
 
 export const getReaderBackend = (): ReaderBackend => {
-    const value = publicEnv("NEXT_PUBLIC_READER_BACKEND") || "firebase";
+    const value = readerBackendEnvironment || "firebase";
+    if (serverBackendEnvironment && readerBackendEnvironment && serverBackendEnvironment !== readerBackendEnvironment) {
+        throw new BackendConfigurationError("READER_BACKEND and NEXT_PUBLIC_READER_BACKEND must match.");
+    }
     if (value === "firebase" || value === "local") return value;
 
     throw new BackendConfigurationError(
@@ -37,9 +53,7 @@ export const getReaderBackend = (): ReaderBackend => {
 };
 
 export const getFirebasePublicConfig = (): FirebasePublicConfig => {
-    const config = Object.fromEntries(
-        Object.entries(firebaseEnvironmentFields).map(([field, environmentName]) => [field, publicEnv(environmentName)])
-    ) as FirebasePublicConfig;
+    const config = publicFirebaseEnvironment;
     const missing = Object.entries(config)
         .filter(([, value]) => !value)
         .map(([field]) => firebaseEnvironmentFields[field as keyof typeof firebaseEnvironmentFields]);
