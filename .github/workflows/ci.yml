@@ -34,7 +34,7 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: "1:123456789012:web:ci-placeholder"
       - run: npm audit --omit=dev --audit-level=high
       - name: Firebase rules emulator tests
-        run: npx --yes firebase-tools@13.35.1 emulators:exec --project reader-rules-test --only firestore,storage "npm run test:rules:run"
+        run: npm run test:rules
 
   secret-scan:
     runs-on: ubuntu-latest

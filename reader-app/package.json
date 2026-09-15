@@ -12,7 +12,7 @@
     "local:backup": "node scripts/local-backup.mjs",
     "firebase:member": "node scripts/firebase-members.mjs",
     "test:local-api": "node tests/local-api.smoke.mjs",
-    "test:rules": "npx --yes firebase-tools@13.35.1 emulators:exec --project reader-rules-test --only firestore,storage \"npm run test:rules:run\"",
+    "test:rules": "npx --yes firebase-tools@13.35.1 emulators:exec --config firebase.test.json --project reader-rules-test --only firestore,storage \"npm run test:rules:run\"",
     "test:rules:run": "vitest run tests/firebase.rules.test.ts"
   },
   "engines": {
